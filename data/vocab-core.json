@@ -1,0 +1,512 @@
+[
+  {
+    "id": "c001",
+    "word": "abstract",
+    "meaning": "抽象的",
+    "pos": "adj./n.",
+    "definition": "existing as an idea without a physical form; a short summary of a text",
+    "collocations": ["abstract idea", "abstract art", "abstract concept"],
+    "examples": [
+      { "en": "Mathematics can seem very abstract to some students.", "zh": "数学对某些学生来说可能显得非常抽象。" },
+      { "en": "Please write an abstract of the article.", "zh": "请写一篇文章摘要。" }
+    ],
+    "synonyms": ["theoretical", "conceptual", "vague"],
+    "antonyms": ["concrete", "physical", "tangible"],
+    "root": "abs-（离开）+ tract（拉）",
+    "examTips": "abstract noun（抽象名词）是高考常考语法点",
+    "level": "core"
+  },
+  {
+    "id": "c002",
+    "word": "accomplish",
+    "meaning": "完成",
+    "pos": "v.",
+    "definition": "to succeed in doing or completing something",
+    "collocations": ["accomplish a task", "accomplish one's goal", "what did you accomplish"],
+    "examples": [
+      { "en": "She accomplished everything she set out to do.", "zh": "她完成了她计划要做的一切事情。" },
+      { "en": "A lot can be accomplished in a short time.", "zh": "短时间内可以完成很多事情。" }
+    ],
+    "synonyms": ["achieve", "complete", "fulfil"],
+    "antonyms": ["fail", "give up"],
+    "root": "ac-（加强）+ com-（共同）+ plish（填满）",
+    "examTips": "accomplishment（成就/才艺），accomplished（有才艺的）",
+    "level": "core"
+  },
+  {
+    "id": "c003",
+    "word": "accurate",
+    "meaning": "精确的",
+    "pos": "adj.",
+    "definition": "correct in all details; not making mistakes",
+    "collocations": ["accurate information", "accurate description", "highly accurate"],
+    "examples": [
+      { "en": "The report must be accurate and complete.", "zh": "报告必须准确完整。" },
+      { "en": "The weather forecast was not accurate.", "zh": "天气预报不太准确。" }
+    ],
+    "synonyms": ["precise", "exact", "correct"],
+    "antonyms": ["inaccurate", "wrong", "approximate"],
+    "root": "ac-（向）+ cur（注意）+ -ate",
+    "examTips": "accuracy（名词），accurately（副词）；高考中常考 be accurate in/about",
+    "level": "core"
+  },
+  {
+    "id": "c004",
+    "word": "acknowledge",
+    "meaning": "承认、感谢",
+    "pos": "v.",
+    "definition": "to accept that something is true; to show that you have noticed or received something",
+    "collocations": ["acknowledge a mistake", "acknowledge receipt", "widely acknowledged"],
+    "examples": [
+      { "en": "He acknowledged that he had made a mistake.", "zh": "他承认自己犯了错误。" },
+      { "en": "Please acknowledge receipt of this email.", "zh": "请确认收到此邮件。" }
+    ],
+    "synonyms": ["admit", "recognise", "accept"],
+    "antonyms": ["deny", "ignore", "reject"],
+    "root": "ac-（加强）+ knowledge（知识）",
+    "examTips": "acknowledge + doing/that 从句；acknowledge sb's contribution（认可某人的贡献）",
+    "level": "core"
+  },
+  {
+    "id": "c005",
+    "word": "advocate",
+    "meaning": "主张、倡议",
+    "pos": "v./n.",
+    "definition": "to publicly support a policy or idea; a person who supports something",
+    "collocations": ["advocate for", "strong advocate", "advocate change"],
+    "examples": [
+      { "en": "She advocates for equal rights for women.", "zh": "她倡导女性平等权利。" },
+      { "en": "He is a strong advocate of environmental protection.", "zh": "他是环境保护的坚定倡导者。" }
+    ],
+    "synonyms": ["support", "promote", "recommend"],
+    "antonyms": ["oppose", "criticise", "reject"],
+    "root": "ad-（向）+ voc（声音）+ -ate",
+    "examTips": "作名词时后跟 of，作动词时跟 for；advocacy（倡导）",
+    "level": "core"
+  },
+  {
+    "id": "c006",
+    "word": "alternative",
+    "meaning": "其他选择、供替代的",
+    "pos": "n./adj.",
+    "definition": "one of two or more possible choices; available as another option",
+    "collocations": ["alternative energy", "no alternative", "alternative solution"],
+    "examples": [
+      { "en": "Is there an alternative to surgery?", "zh": "有没有手术之外的替代方法？" },
+      { "en": "We need to find alternative sources of energy.", "zh": "我们需要找到替代能源。" }
+    ],
+    "synonyms": ["option", "choice", "substitute"],
+    "antonyms": [],
+    "root": "alter（其他的）+ -native",
+    "examTips": "have no alternative but to do（别无选择，只好做）",
+    "level": "core"
+  },
+  {
+    "id": "c007",
+    "word": "ambition",
+    "meaning": "雄心、志向",
+    "pos": "n.",
+    "definition": "a strong desire to achieve something, especially a high level of success",
+    "collocations": ["have ambition", "fulfil one's ambition", "political ambition"],
+    "examples": [
+      { "en": "Her ambition is to become a scientist.", "zh": "她的志向是成为一名科学家。" },
+      { "en": "He has great ambition but lacks experience.", "zh": "他雄心勃勃，但缺乏经验。" }
+    ],
+    "synonyms": ["aspiration", "goal", "dream"],
+    "antonyms": ["laziness", "indifference"],
+    "root": "ambi-（四周）+ tion（走），原指四处奔走拉选票",
+    "examTips": "ambitious（有雄心的），ambitiously；fulfil/realise one's ambition",
+    "level": "core"
+  },
+  {
+    "id": "c008",
+    "word": "appropriate",
+    "meaning": "合适的",
+    "pos": "adj.",
+    "definition": "suitable or proper in the circumstances",
+    "collocations": ["appropriate behaviour", "be appropriate for", "appropriate measures"],
+    "examples": [
+      { "en": "Please wear appropriate clothing for the interview.", "zh": "面试时请穿着得体。" },
+      { "en": "This film is not appropriate for children.", "zh": "这部电影不适合儿童观看。" }
+    ],
+    "synonyms": ["suitable", "proper", "fitting"],
+    "antonyms": ["inappropriate", "unsuitable", "improper"],
+    "root": "ap-（向）+ propri（自己的）+ -ate",
+    "examTips": "it is appropriate (for sb) to do sth；appropriate to/for",
+    "level": "core"
+  },
+  {
+    "id": "c009",
+    "word": "assess",
+    "meaning": "评估",
+    "pos": "v.",
+    "definition": "to judge the quality, importance, or value of something",
+    "collocations": ["assess the situation", "assess risk", "be assessed on"],
+    "examples": [
+      { "en": "Teachers assess students through tests and projects.", "zh": "教师通过测验和项目来评估学生。" },
+      { "en": "We need to assess the damage caused by the storm.", "zh": "我们需要评估风暴造成的损失。" }
+    ],
+    "synonyms": ["evaluate", "judge", "measure"],
+    "antonyms": [],
+    "root": "as-（向）+ sess（坐），原指评税官坐在旁边估算",
+    "examTips": "assessment（评估/作业），self-assessment（自我评估）",
+    "level": "core"
+  },
+  {
+    "id": "c010",
+    "word": "assume",
+    "meaning": "假设、揣测",
+    "pos": "v.",
+    "definition": "to accept something as true without proof; to take on responsibility",
+    "collocations": ["assume that", "assume responsibility", "wrongly assume"],
+    "examples": [
+      { "en": "Don't assume you know the answer.", "zh": "不要假设你知道答案。" },
+      { "en": "He assumed control of the company.", "zh": "他接管了公司。" }
+    ],
+    "synonyms": ["suppose", "presume", "take for granted"],
+    "antonyms": ["know", "confirm"],
+    "root": "as-（向）+ sume（拿取）",
+    "examTips": "assumption（假设）；assume responsibility/control（承担责任/掌控）",
+    "level": "core"
+  },
+  {
+    "id": "c011",
+    "word": "atmosphere",
+    "meaning": "气氛、大气层",
+    "pos": "n.",
+    "definition": "the feeling or mood of a place or situation; the layer of gases around the Earth",
+    "collocations": ["friendly atmosphere", "atmosphere of fear", "Earth's atmosphere"],
+    "examples": [
+      { "en": "The restaurant has a warm, cosy atmosphere.", "zh": "这家餐厅有一种温暖舒适的氛围。" },
+      { "en": "Pollution is damaging the atmosphere.", "zh": "污染正在破坏大气层。" }
+    ],
+    "synonyms": ["environment", "mood", "climate"],
+    "antonyms": [],
+    "root": "atmo-（蒸汽）+ sphere（球体）",
+    "examTips": "atmospheric（大气的/有氛围的）；create an atmosphere（营造氛围）",
+    "level": "core"
+  },
+  {
+    "id": "c012",
+    "word": "attitude",
+    "meaning": "态度",
+    "pos": "n.",
+    "definition": "the way you think or feel about something, shown in how you behave",
+    "collocations": ["attitude towards", "positive attitude", "change one's attitude"],
+    "examples": [
+      { "en": "She has a very positive attitude towards work.", "zh": "她对工作持非常积极的态度。" },
+      { "en": "Your attitude will determine your future.", "zh": "你的态度决定你的未来。" }
+    ],
+    "synonyms": ["outlook", "opinion", "view"],
+    "antonyms": [],
+    "root": "拉丁 aptitudo（适合状态）",
+    "examTips": "attitude to/towards（对……的态度）",
+    "level": "core"
+  },
+  {
+    "id": "c013",
+    "word": "benefit",
+    "meaning": "益处、好处",
+    "pos": "n./v.",
+    "definition": "an advantage or profit gained; to receive an advantage",
+    "collocations": ["benefit from", "for the benefit of", "health benefits"],
+    "examples": [
+      { "en": "Exercise has many health benefits.", "zh": "运动对健康有很多好处。" },
+      { "en": "Everyone will benefit from this change.", "zh": "每个人都将从这次变化中受益。" }
+    ],
+    "synonyms": ["advantage", "gain", "profit"],
+    "antonyms": ["harm", "disadvantage", "damage"],
+    "root": "bene-（好）+ fit（做）",
+    "examTips": "benefit from（受益于）；for the benefit of（为了……的利益）",
+    "level": "core"
+  },
+  {
+    "id": "c014",
+    "word": "consequence",
+    "meaning": "后果、结果",
+    "pos": "n.",
+    "definition": "a result or effect of an action or condition",
+    "collocations": ["serious consequence", "as a consequence", "face the consequences"],
+    "examples": [
+      { "en": "You must face the consequences of your actions.", "zh": "你必须承担自己行为的后果。" },
+      { "en": "As a consequence of the storm, many roads were closed.", "zh": "由于暴风雨，许多道路被关闭。" }
+    ],
+    "synonyms": ["result", "outcome", "effect"],
+    "antonyms": ["cause", "reason"],
+    "root": "con-（共同）+ sequence（顺序）",
+    "examTips": "in consequence（因此）；as a consequence of（由于……的结果）",
+    "level": "core"
+  },
+  {
+    "id": "c015",
+    "word": "contribute",
+    "meaning": "贡献、促成",
+    "pos": "v.",
+    "definition": "to give something, especially money, in order to help achieve something",
+    "collocations": ["contribute to", "contribute money", "make a contribution"],
+    "examples": [
+      { "en": "Everyone should contribute to society.", "zh": "每个人都应该为社会做贡献。" },
+      { "en": "Pollution contributes to climate change.", "zh": "污染是气候变化的成因之一。" }
+    ],
+    "synonyms": ["give", "donate", "add to"],
+    "antonyms": ["take", "detract", "hinder"],
+    "root": "con-（共同）+ tribute（给予）",
+    "examTips": "contribute to（促成/贡献于）；contribution（贡献）",
+    "level": "core"
+  },
+  {
+    "id": "c016",
+    "word": "controversial",
+    "meaning": "有争议的",
+    "pos": "adj.",
+    "definition": "causing a lot of discussion or disagreement because many people have different opinions",
+    "collocations": ["controversial issue", "controversial decision", "remain controversial"],
+    "examples": [
+      { "en": "This is a highly controversial topic.", "zh": "这是一个极具争议的话题。" },
+      { "en": "The new law proved very controversial.", "zh": "新法律被证明极具争议性。" }
+    ],
+    "synonyms": ["debatable", "disputed", "contentious"],
+    "antonyms": ["uncontroversial", "accepted", "agreed"],
+    "root": "contro-（反对）+ vers（转）+ -ial",
+    "examTips": "controversy（争议）；spark controversy（引发争议）",
+    "level": "core"
+  },
+  {
+    "id": "c017",
+    "word": "convince",
+    "meaning": "使信服、说服",
+    "pos": "v.",
+    "definition": "to make someone feel certain that something is true, or persuade someone to do something",
+    "collocations": ["convince sb of", "convince sb to do", "be convinced that"],
+    "examples": [
+      { "en": "I tried to convince him that I was right.", "zh": "我试图说服他我是对的。" },
+      { "en": "She convinced me to try the new restaurant.", "zh": "她说服我去试那家新餐厅。" }
+    ],
+    "synonyms": ["persuade", "assure", "prove to"],
+    "antonyms": ["dissuade", "discourage"],
+    "root": "con-（完全）+ vince（征服）",
+    "examTips": "convince sb of sth；convince sb to do；be convinced that（确信……）",
+    "level": "core"
+  },
+  {
+    "id": "c018",
+    "word": "cooperate",
+    "meaning": "合作",
+    "pos": "v.",
+    "definition": "to work together with someone in order to achieve something",
+    "collocations": ["cooperate with", "cooperate on a project", "refuse to cooperate"],
+    "examples": [
+      { "en": "We need to cooperate to solve this problem.", "zh": "我们需要合作来解决这个问题。" },
+      { "en": "The two countries cooperated on space research.", "zh": "两国在太空研究上进行了合作。" }
+    ],
+    "synonyms": ["collaborate", "work together", "partner"],
+    "antonyms": ["compete", "oppose"],
+    "root": "co-（共同）+ operate（运作）",
+    "examTips": "cooperation（合作）；cooperative（合作的/合作社）",
+    "level": "core"
+  },
+  {
+    "id": "c019",
+    "word": "criterion",
+    "meaning": "标准",
+    "pos": "n.",
+    "definition": "a standard used for judging or making a decision about something",
+    "collocations": ["meet the criteria", "selection criteria", "by any criterion"],
+    "examples": [
+      { "en": "What are the criteria for choosing a university?", "zh": "选择大学的标准是什么？" },
+      { "en": "Price is not the only criterion.", "zh": "价格不是唯一的标准。" }
+    ],
+    "synonyms": ["standard", "measure", "benchmark"],
+    "antonyms": [],
+    "root": "希腊语 kriterion（判断工具）",
+    "examTips": "复数是 criteria（常考拼写错误）；meet/satisfy the criteria（满足标准）",
+    "level": "core"
+  },
+  {
+    "id": "c020",
+    "word": "determine",
+    "meaning": "决定、确定",
+    "pos": "v.",
+    "definition": "to decide or establish something; to find out the facts",
+    "collocations": ["determine the cause", "be determined to do", "determine whether"],
+    "examples": [
+      { "en": "Hard work determines your success.", "zh": "努力决定你的成功。" },
+      { "en": "Scientists are trying to determine the cause.", "zh": "科学家正在努力确定原因。" }
+    ],
+    "synonyms": ["decide", "establish", "find out"],
+    "antonyms": [],
+    "root": "de-（完全）+ term（界限）+ -ine",
+    "examTips": "be determined to do（下定决心做）；determination（决心）",
+    "level": "core"
+  },
+  {
+    "id": "c021",
+    "word": "emphasize",
+    "meaning": "强调",
+    "pos": "v.",
+    "definition": "to give special importance or attention to something",
+    "collocations": ["emphasize the importance", "strongly emphasize", "emphasize that"],
+    "examples": [
+      { "en": "The teacher emphasized the importance of reading.", "zh": "老师强调了阅读的重要性。" },
+      { "en": "I must emphasize that safety comes first.", "zh": "我必须强调安全第一。" }
+    ],
+    "synonyms": ["stress", "highlight", "underline"],
+    "antonyms": ["downplay", "minimise"],
+    "root": "em-（在…之上）+ phase（外观）",
+    "examTips": "emphasis（名词），place/lay emphasis on（着重于）",
+    "level": "core"
+  },
+  {
+    "id": "c022",
+    "word": "establish",
+    "meaning": "建立",
+    "pos": "v.",
+    "definition": "to start or create an organisation, system or relationship",
+    "collocations": ["establish a school", "establish a relationship", "well established"],
+    "examples": [
+      { "en": "The school was established in 1920.", "zh": "该学校创建于1920年。" },
+      { "en": "They established a new record.", "zh": "他们创造了新纪录。" }
+    ],
+    "synonyms": ["found", "set up", "create"],
+    "antonyms": ["destroy", "abolish", "dissolve"],
+    "root": "e-（出）+ stablish（站稳）",
+    "examTips": "establishment（建立/机构）；be well-established（根基稳固）",
+    "level": "core"
+  },
+  {
+    "id": "c023",
+    "word": "evaluate",
+    "meaning": "评估",
+    "pos": "v.",
+    "definition": "to judge the value, quality or importance of something",
+    "collocations": ["evaluate performance", "evaluate the results", "critically evaluate"],
+    "examples": [
+      { "en": "The teacher evaluated each student's progress.", "zh": "老师评估了每位学生的进步。" },
+      { "en": "We need to evaluate the risks involved.", "zh": "我们需要评估所涉及的风险。" }
+    ],
+    "synonyms": ["assess", "judge", "measure"],
+    "antonyms": [],
+    "root": "e-（出）+ value（价值）+ -ate",
+    "examTips": "evaluation（评估/评价）；self-evaluation（自我评价）",
+    "level": "core"
+  },
+  {
+    "id": "c024",
+    "word": "influence",
+    "meaning": "影响",
+    "pos": "n./v.",
+    "definition": "the effect that someone or something has on a person's thinking or behaviour",
+    "collocations": ["influence on/over", "have a great influence", "under the influence of"],
+    "examples": [
+      { "en": "Music has a powerful influence on our emotions.", "zh": "音乐对我们的情绪有强大的影响。" },
+      { "en": "His parents influenced his decision.", "zh": "他父母影响了他的决定。" }
+    ],
+    "synonyms": ["affect", "impact", "effect"],
+    "antonyms": [],
+    "root": "in-（向内）+ fluence（流动）",
+    "examTips": "have an influence on；under the influence of；influential（有影响力的）",
+    "level": "core"
+  },
+  {
+    "id": "c025",
+    "word": "inspire",
+    "meaning": "激励、启发",
+    "pos": "v.",
+    "definition": "to make someone feel that they want to do something or create something",
+    "collocations": ["inspire confidence", "inspire sb to do", "be inspired by"],
+    "examples": [
+      { "en": "Her speech inspired many young people.", "zh": "她的演讲激励了很多年轻人。" },
+      { "en": "He was inspired by nature to paint.", "zh": "他受到大自然的启发开始作画。" }
+    ],
+    "synonyms": ["motivate", "encourage", "stimulate"],
+    "antonyms": ["discourage", "demotivate"],
+    "root": "in-（进入）+ spire（呼吸）",
+    "examTips": "inspiration（灵感/启发），inspiring（鼓舞人心的），inspired（受启发的）",
+    "level": "core"
+  },
+  {
+    "id": "c026",
+    "word": "maintain",
+    "meaning": "保持、维持",
+    "pos": "v.",
+    "definition": "to keep something in good condition or at the same level",
+    "collocations": ["maintain health", "maintain order", "maintain a relationship"],
+    "examples": [
+      { "en": "It is difficult to maintain a healthy diet.", "zh": "保持健康饮食是很困难的。" },
+      { "en": "The government works to maintain social order.", "zh": "政府致力于维护社会秩序。" }
+    ],
+    "synonyms": ["keep", "preserve", "sustain"],
+    "antonyms": ["neglect", "abandon", "destroy"],
+    "root": "main-（手）+ tain（握住）",
+    "examTips": "maintenance（维护）；maintain that（坚持认为）",
+    "level": "core"
+  },
+  {
+    "id": "c027",
+    "word": "obstacle",
+    "meaning": "障碍",
+    "pos": "n.",
+    "definition": "something that blocks your way or prevents you from doing something",
+    "collocations": ["overcome an obstacle", "face obstacles", "obstacle to progress"],
+    "examples": [
+      { "en": "Lack of money is the main obstacle to our plan.", "zh": "缺乏资金是我们计划的主要障碍。" },
+      { "en": "She overcame every obstacle to achieve her goal.", "zh": "她克服了每一个障碍，实现了目标。" }
+    ],
+    "synonyms": ["barrier", "difficulty", "hurdle"],
+    "antonyms": ["advantage", "help", "support"],
+    "root": "ob-（在前面）+ stacle（站立）",
+    "examTips": "overcome/remove/face an obstacle；obstacle to + 名词",
+    "level": "core"
+  },
+  {
+    "id": "c028",
+    "word": "persist",
+    "meaning": "坚持",
+    "pos": "v.",
+    "definition": "to continue doing something despite difficulties or opposition",
+    "collocations": ["persist in doing", "persist with a plan", "persistent effort"],
+    "examples": [
+      { "en": "She persisted in her efforts despite the difficulties.", "zh": "尽管困难重重，她仍坚持努力。" },
+      { "en": "The cold weather persisted for weeks.", "zh": "寒冷天气持续了数周。" }
+    ],
+    "synonyms": ["continue", "persevere", "insist"],
+    "antonyms": ["give up", "quit", "stop"],
+    "root": "per-（穿过）+ sist（站立）",
+    "examTips": "persist in doing（坚持做）；persistence（坚持不懈）；persistent（持续的/顽固的）",
+    "level": "core"
+  },
+  {
+    "id": "c029",
+    "word": "potential",
+    "meaning": "潜在的、潜力",
+    "pos": "adj./n.",
+    "definition": "possible in the future; ability that may develop in the future",
+    "collocations": ["potential problem", "full potential", "have great potential"],
+    "examples": [
+      { "en": "She has the potential to be a great leader.", "zh": "她具有成为伟大领导者的潜力。" },
+      { "en": "We should consider the potential risks.", "zh": "我们应该考虑潜在的风险。" }
+    ],
+    "synonyms": ["possible", "capability", "promise"],
+    "antonyms": ["actual", "current", "real"],
+    "root": "pot-（力量）+ -ential",
+    "examTips": "reach/fulfil one's potential（发挥潜力）；potentially（潜在地）",
+    "level": "core"
+  },
+  {
+    "id": "c030",
+    "word": "significant",
+    "meaning": "重要的、显著的",
+    "pos": "adj.",
+    "definition": "important, large, or noticeable enough to have an effect",
+    "collocations": ["significant change", "significant role", "statistically significant"],
+    "examples": [
+      { "en": "There has been a significant improvement in air quality.", "zh": "空气质量有了显著改善。" },
+      { "en": "This discovery is highly significant.", "zh": "这一发现非常重要。" }
+    ],
+    "synonyms": ["important", "notable", "considerable"],
+    "antonyms": ["insignificant", "minor", "trivial"],
+    "root": "sign-（符号）+ -ificant（产生）",
+    "examTips": "significance（重要性）；significantly（显著地）；play a significant role in",
+    "level": "core"
+  }
+]

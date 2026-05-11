@@ -1,0 +1,342 @@
+[
+  {
+    "id": "b001",
+    "word": "abandon",
+    "meaning": "抛弃、放弃",
+    "pos": "v.",
+    "definition": "to leave someone or something permanently, especially when you are responsible for them",
+    "collocations": ["abandon a plan", "abandon hope", "abandon ship"],
+    "examples": [
+      { "en": "They were forced to abandon the car and walk.", "zh": "他们被迫放弃车辆，步行前进。" },
+      { "en": "She abandoned her dream of becoming a doctor.", "zh": "她放弃了成为医生的梦想。" }
+    ],
+    "synonyms": ["desert", "forsake", "give up"],
+    "antonyms": ["keep", "maintain", "retain"],
+    "root": "法语 abandonner（放任）",
+    "examTips": "高考常考：abandon + 名词；abandon oneself to 沉湎于",
+    "level": "basic"
+  },
+  {
+    "id": "b002",
+    "word": "ability",
+    "meaning": "能力",
+    "pos": "n.",
+    "definition": "the physical or mental power or skill needed to do something",
+    "collocations": ["have the ability to", "natural ability", "ability in"],
+    "examples": [
+      { "en": "She has the ability to learn languages quickly.", "zh": "她有快速学习语言的能力。" },
+      { "en": "His ability in maths is outstanding.", "zh": "他的数学能力非常出色。" }
+    ],
+    "synonyms": ["capability", "skill", "talent"],
+    "antonyms": ["inability", "weakness"],
+    "root": "able + -ity（名词后缀）",
+    "examTips": "区分 ability（具体做某事的能力）与 capacity（潜力/容量）",
+    "level": "basic"
+  },
+  {
+    "id": "b003",
+    "word": "achieve",
+    "meaning": "取得成功、实现目标",
+    "pos": "v.",
+    "definition": "to successfully reach a desired goal, result or standard",
+    "collocations": ["achieve a goal", "achieve success", "achieve one's dream"],
+    "examples": [
+      { "en": "Hard work helped her achieve her goal.", "zh": "努力帮助她实现了目标。" },
+      { "en": "He achieved top marks in all subjects.", "zh": "他在所有科目中都取得了最高分。" }
+    ],
+    "synonyms": ["accomplish", "attain", "reach"],
+    "antonyms": ["fail", "miss"],
+    "root": "a- + chieve（完成）",
+    "examTips": "achieve 后跟名词，注意 achievement（成就）是名词形式",
+    "level": "basic"
+  },
+  {
+    "id": "b004",
+    "word": "affect",
+    "meaning": "影响",
+    "pos": "v.",
+    "definition": "to have an influence on someone or something, or to cause a change",
+    "collocations": ["affect one's health", "be affected by", "deeply affect"],
+    "examples": [
+      { "en": "The weather affects my mood.", "zh": "天气会影响我的心情。" },
+      { "en": "Many people were affected by the flood.", "zh": "很多人受到了洪水的影响。" }
+    ],
+    "synonyms": ["influence", "impact", "change"],
+    "antonyms": [],
+    "root": "af-（向）+ fect（做）",
+    "examTips": "区分 affect（动词，影响）与 effect（名词，效果）",
+    "level": "basic"
+  },
+  {
+    "id": "b005",
+    "word": "agree",
+    "meaning": "同意",
+    "pos": "v.",
+    "definition": "to have the same opinion as someone else, or to say yes to something",
+    "collocations": ["agree with", "agree to do", "agree on a plan"],
+    "examples": [
+      { "en": "I agree with your opinion.", "zh": "我同意你的观点。" },
+      { "en": "They agreed to meet at noon.", "zh": "他们同意在中午见面。" }
+    ],
+    "synonyms": ["consent", "accept", "approve"],
+    "antonyms": ["disagree", "refuse", "reject"],
+    "root": "a-（加强）+ gree（喜欢）",
+    "examTips": "agree with sb/sth（同意某人/某事），agree to do sth（同意做），agree on（就…达成一致）",
+    "level": "basic"
+  },
+  {
+    "id": "b006",
+    "word": "allow",
+    "meaning": "允许",
+    "pos": "v.",
+    "definition": "to let someone do something or let something happen",
+    "collocations": ["allow sb to do", "be allowed to", "allow for"],
+    "examples": [
+      { "en": "Students are not allowed to use phones in class.", "zh": "学生上课不允许使用手机。" },
+      { "en": "Please allow me to explain.", "zh": "请允许我解释一下。" }
+    ],
+    "synonyms": ["permit", "let", "enable"],
+    "antonyms": ["forbid", "ban", "prohibit"],
+    "root": "al-（加强）+ low（低，顺从）",
+    "examTips": "allow sb to do sth；allow for（考虑到，预留）",
+    "level": "basic"
+  },
+  {
+    "id": "b007",
+    "word": "amazing",
+    "meaning": "令人赞叹的",
+    "pos": "adj.",
+    "definition": "very surprising, impressive or wonderful",
+    "collocations": ["amazing performance", "simply amazing", "find it amazing"],
+    "examples": [
+      { "en": "The view from the top was amazing.", "zh": "从顶上看到的景色令人叹为观止。" },
+      { "en": "She gave an amazing speech.", "zh": "她发表了一篇令人叹服的演讲。" }
+    ],
+    "synonyms": ["wonderful", "stunning", "incredible"],
+    "antonyms": ["ordinary", "boring", "dull"],
+    "root": "amaze（使惊讶）+ -ing",
+    "examTips": "修饰事物用 amazing，修饰人的感受用 amazed",
+    "level": "basic"
+  },
+  {
+    "id": "b008",
+    "word": "appreciate",
+    "meaning": "欣赏、感激",
+    "pos": "v.",
+    "definition": "to understand how good something is, or to feel grateful for it",
+    "collocations": ["appreciate one's help", "appreciate beauty", "greatly appreciate"],
+    "examples": [
+      { "en": "I really appreciate your help.", "zh": "我非常感激你的帮助。" },
+      { "en": "He appreciates classical music.", "zh": "他欣赏古典音乐。" }
+    ],
+    "synonyms": ["value", "cherish", "be grateful for"],
+    "antonyms": ["disregard", "ignore"],
+    "root": "ap-（加强）+ preci（价值）+ -ate",
+    "examTips": "appreciate + 名词/doing（感激某事）；I would appreciate it if...（我将感激……）",
+    "level": "basic"
+  },
+  {
+    "id": "b009",
+    "word": "avoid",
+    "meaning": "避免",
+    "pos": "v.",
+    "definition": "to stay away from someone or something, or to prevent something from happening",
+    "collocations": ["avoid doing", "avoid danger", "avoid eye contact"],
+    "examples": [
+      { "en": "You should avoid eating too much sugar.", "zh": "你应该避免吃太多糖。" },
+      { "en": "She avoided looking at him.", "zh": "她避免看他。" }
+    ],
+    "synonyms": ["prevent", "escape", "evade"],
+    "antonyms": ["face", "confront", "seek"],
+    "root": "a-（远离）+ void（空，避开）",
+    "examTips": "avoid + doing（避免做某事），不用 avoid to do",
+    "level": "basic"
+  },
+  {
+    "id": "b010",
+    "word": "believe",
+    "meaning": "相信、认为",
+    "pos": "v.",
+    "definition": "to feel certain that something is true, or to think something",
+    "collocations": ["believe in", "believe that", "hard to believe"],
+    "examples": [
+      { "en": "I believe he is telling the truth.", "zh": "我相信他说的是实话。" },
+      { "en": "She believes in working hard.", "zh": "她相信努力工作的价值。" }
+    ],
+    "synonyms": ["trust", "think", "consider"],
+    "antonyms": ["doubt", "disbelieve"],
+    "root": "be-（加强）+ lieve（留，信）",
+    "examTips": "believe in（信仰/相信存在），believe sb（相信某人说的话）",
+    "level": "basic"
+  },
+  {
+    "id": "b011",
+    "word": "challenge",
+    "meaning": "挑战",
+    "pos": "n./v.",
+    "definition": "something that needs great mental or physical effort in order to succeed; to invite competition",
+    "collocations": ["face a challenge", "meet the challenge", "challenge sb to"],
+    "examples": [
+      { "en": "Learning a new language is a big challenge.", "zh": "学习一门新语言是一个巨大的挑战。" },
+      { "en": "He challenged me to a race.", "zh": "他向我发出赛跑的挑战。" }
+    ],
+    "synonyms": ["difficulty", "test", "obstacle"],
+    "antonyms": [],
+    "root": "拉丁 calumnia（诽谤）演变而来",
+    "examTips": "face/meet/accept a challenge；challenging（有挑战性的）",
+    "level": "basic"
+  },
+  {
+    "id": "b012",
+    "word": "communicate",
+    "meaning": "沟通、交流",
+    "pos": "v.",
+    "definition": "to share information, ideas or feelings with another person",
+    "collocations": ["communicate with", "communicate ideas", "communicate effectively"],
+    "examples": [
+      { "en": "It is important to communicate clearly.", "zh": "清晰地沟通非常重要。" },
+      { "en": "They communicated by email.", "zh": "他们通过电子邮件交流。" }
+    ],
+    "synonyms": ["express", "convey", "interact"],
+    "antonyms": [],
+    "root": "com-（共同）+ munic（公共的）+ -ate",
+    "examTips": "communication（名词），communicative（善于沟通的）",
+    "level": "basic"
+  },
+  {
+    "id": "b013",
+    "word": "consider",
+    "meaning": "考虑、认为",
+    "pos": "v.",
+    "definition": "to think carefully about something before making a decision",
+    "collocations": ["consider doing", "consider sb/sth as", "consider carefully"],
+    "examples": [
+      { "en": "Have you considered applying for the job?", "zh": "你考虑过申请这份工作吗？" },
+      { "en": "We consider him an excellent student.", "zh": "我们认为他是一个出色的学生。" }
+    ],
+    "synonyms": ["think about", "regard", "view"],
+    "antonyms": [],
+    "root": "con-（共同）+ sider（星星，观察星象）",
+    "examTips": "consider + doing（考虑做）；consider sb/sth + adj./as（认为是）",
+    "level": "basic"
+  },
+  {
+    "id": "b014",
+    "word": "decide",
+    "meaning": "决定",
+    "pos": "v.",
+    "definition": "to choose something after thinking about several possibilities",
+    "collocations": ["decide to do", "decide on", "make a decision"],
+    "examples": [
+      { "en": "I decided to study abroad.", "zh": "我决定出国留学。" },
+      { "en": "Have you decided on a college?", "zh": "你决定好上哪所大学了吗？" }
+    ],
+    "synonyms": ["determine", "choose", "resolve"],
+    "antonyms": ["hesitate", "waver"],
+    "root": "de-（分开）+ cide（切断）",
+    "examTips": "decide to do（决定做）；decision（名词）",
+    "level": "basic"
+  },
+  {
+    "id": "b015",
+    "word": "develop",
+    "meaning": "发展",
+    "pos": "v.",
+    "definition": "to grow or change into a more advanced form; to create something new",
+    "collocations": ["develop skills", "develop a habit", "develop rapidly"],
+    "examples": [
+      { "en": "The city has developed quickly.", "zh": "这座城市发展很快。" },
+      { "en": "She is developing her painting skills.", "zh": "她正在培养绘画技能。" }
+    ],
+    "synonyms": ["grow", "advance", "improve"],
+    "antonyms": ["decline", "worsen", "deteriorate"],
+    "root": "de-（去除）+ velop（包裹）",
+    "examTips": "development（名词），developing countries（发展中国家）",
+    "level": "basic"
+  },
+  {
+    "id": "b016",
+    "word": "effort",
+    "meaning": "努力",
+    "pos": "n.",
+    "definition": "the physical or mental energy needed to do something; a serious attempt",
+    "collocations": ["make an effort", "put effort into", "spare no effort"],
+    "examples": [
+      { "en": "Success requires a lot of effort.", "zh": "成功需要付出很多努力。" },
+      { "en": "She made every effort to finish on time.", "zh": "她尽一切努力按时完成。" }
+    ],
+    "synonyms": ["attempt", "try", "endeavour"],
+    "antonyms": ["laziness", "inactivity"],
+    "root": "ef-（出）+ fort（力量）",
+    "examTips": "make an effort to do；spare no effort（不遗余力）",
+    "level": "basic"
+  },
+  {
+    "id": "b017",
+    "word": "experience",
+    "meaning": "经历、经验",
+    "pos": "n./v.",
+    "definition": "knowledge or skill gained from doing something; to have something happen to you",
+    "collocations": ["gain experience", "work experience", "personal experience"],
+    "examples": [
+      { "en": "She has years of teaching experience.", "zh": "她有多年的教学经验。" },
+      { "en": "We experienced some difficulties.", "zh": "我们经历了一些困难。" }
+    ],
+    "synonyms": ["encounter", "undergo", "knowledge"],
+    "antonyms": ["inexperience"],
+    "root": "ex-（出）+ peri（尝试）+ -ence",
+    "examTips": "作名词时可数（an experience 一段经历）也不可数（experience 经验）",
+    "level": "basic"
+  },
+  {
+    "id": "b018",
+    "word": "improve",
+    "meaning": "改进、提高",
+    "pos": "v.",
+    "definition": "to make something better, or to become better",
+    "collocations": ["improve one's English", "greatly improve", "room for improvement"],
+    "examples": [
+      { "en": "I want to improve my writing skills.", "zh": "我想提高我的写作技能。" },
+      { "en": "The situation has improved a lot.", "zh": "情况已经改善了很多。" }
+    ],
+    "synonyms": ["enhance", "develop", "advance"],
+    "antonyms": ["worsen", "decline", "deteriorate"],
+    "root": "im-（进入）+ prove（测试，证明）",
+    "examTips": "improvement（名词），improve on sth（改进某事物）",
+    "level": "basic"
+  },
+  {
+    "id": "b019",
+    "word": "protect",
+    "meaning": "保护",
+    "pos": "v.",
+    "definition": "to keep someone or something safe from danger or harm",
+    "collocations": ["protect the environment", "protect from/against", "protect sb's rights"],
+    "examples": [
+      { "en": "We must protect the environment.", "zh": "我们必须保护环境。" },
+      { "en": "Sunscreen protects your skin from UV rays.", "zh": "防晒霜能保护皮肤免受紫外线伤害。" }
+    ],
+    "synonyms": ["guard", "defend", "preserve"],
+    "antonyms": ["harm", "damage", "expose"],
+    "root": "pro-（向前）+ tect（覆盖）",
+    "examTips": "protect sb/sth from/against（保护…免受），protection（名词）",
+    "level": "basic"
+  },
+  {
+    "id": "b020",
+    "word": "suggest",
+    "meaning": "建议、表明",
+    "pos": "v.",
+    "definition": "to put forward an idea or plan for someone to consider; to indicate",
+    "collocations": ["suggest doing", "suggest that", "strongly suggest"],
+    "examples": [
+      { "en": "I suggest you take a rest.", "zh": "我建议你休息一下。" },
+      { "en": "The evidence suggests he was there.", "zh": "证据表明他当时在那里。" }
+    ],
+    "synonyms": ["recommend", "propose", "indicate"],
+    "antonyms": [],
+    "root": "sug-（在下面）+ gest（携带）",
+    "examTips": "suggest + doing（建议做）；suggest that + 虚拟语气（should + V）",
+    "level": "basic"
+  }
+]
