@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   '/spelling',
   '/wrong-words',
   '/profile',
+  '/ai-analysis',
 ]
 
 self.addEventListener('install', (event) => {

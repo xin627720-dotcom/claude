@@ -129,6 +129,18 @@ export default function HomePage() {
           </div>
         </Link>
       </div>
+
+      {/* AI Analysis */}
+      <Link href="/ai-analysis" className="flex items-center gap-3 bg-gradient-to-r from-accent to-purple-500 text-white rounded-xl p-4 shadow-sm active:scale-[0.97] transition-all">
+        <span className="text-2xl">🤖</span>
+        <div className="flex-1">
+          <p className="font-semibold text-sm">AI 学习诊断</p>
+          <p className="text-xs opacity-80">分析薄弱词汇，制定学习计划</p>
+        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 opacity-70">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </Link>
     </div>
   )
 }
