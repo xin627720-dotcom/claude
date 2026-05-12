@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getUserStats, loadStore } from '@/lib/localStore'
+import { getUserStats, loadStore, getWrongWordCount } from '@/lib/localStore'
 import { allWords } from '@/lib/vocab'
 import { isDueForReview } from '@/lib/review'
 import { useAuth } from '@/contexts/AuthContext'
@@ -24,15 +24,14 @@ export default function HomePage() {
 
     const store = loadStore()
     const pm = store.wordProgress
-    let due = 0, wrong = 0, fav = 0, mastered = 0
+    let due = 0, fav = 0, mastered = 0
     for (const p of Object.values(pm)) {
       if (isDueForReview(p) && p.status !== 'unseen') due++
-      if (p.isWrongWord) wrong++
       if (p.isFavorite) fav++
       if (p.status === 'mastered') mastered++
     }
     setDueCount(due)
-    setWrongCount(wrong)
+    setWrongCount(getWrongWordCount()) // same logic as wrong-words page
     setFavoriteCount(fav)
     setMasteredCount(mastered)
   }, [])

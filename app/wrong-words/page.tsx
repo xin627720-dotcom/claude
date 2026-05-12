@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { getWordById } from '@/lib/vocab'
 import {
-  getWrongWords,
+  getWrongWordsList,
   saveWordProgress,
   getWordProgress,
   removeWrongWord,
@@ -12,19 +13,28 @@ import {
 import type { WrongWord } from '@/lib/types'
 
 function formatDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return '未知'
+    return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  } catch {
+    return '未知'
+  }
 }
 
 export default function WrongWordsPage() {
+  const router = useRouter()
   const [list, setList] = useState<WrongWord[]>([])
 
   const reload = useCallback(() => {
-    const ww = getWrongWords()
-    const arr = Object.values(ww).sort(
-      (a, b) => new Date(b.lastWrongAt).getTime() - new Date(a.lastWrongAt).getTime()
-    )
-    setList(arr)
+    // getWrongWordsList() reads from wordProgress — same source as home page count
+    const arr = getWrongWordsList()
+    // Filter out entries whose wordId no longer exists in the vocab
+    const valid = arr.filter(ww => {
+      if (!ww?.wordId) return false
+      return !!getWordById(ww.wordId)
+    })
+    setList(valid)
   }, [])
 
   useEffect(() => { reload() }, [reload])
@@ -43,7 +53,7 @@ export default function WrongWordsPage() {
 
   const handleRemove = (wordId: string) => {
     const p = getWordProgress(wordId)
-    saveWordProgress({ ...p, isWrongWord: false, updatedAt: new Date().toISOString() })
+    saveWordProgress({ ...p, isWrongWord: false, wrongCount: 0, quizWrongCount: 0, updatedAt: new Date().toISOString() })
     removeWrongWord(wordId)
     reload()
   }
@@ -62,20 +72,28 @@ export default function WrongWordsPage() {
       ) : (
         <div className="space-y-3">
           {list.map((ww) => {
+            // word existence is already guaranteed by the filter in reload()
             const word = getWordById(ww.wordId)
             if (!word) return null
             return (
               <div key={ww.wordId} className="bg-white rounded-xl shadow-card p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <Link href={`/word/${ww.wordId}`} className="flex-1 min-w-0">
+                  <button
+                    onClick={() => router.push(`/word/${ww.wordId}`)}
+                    className="flex-1 min-w-0 text-left"
+                  >
                     <p className="font-bold text-lg text-text-primary">{word.word}</p>
                     <p className="text-sm text-text-secondary">{word.meaning}</p>
                     <div className="flex items-center gap-3 mt-1.5">
-                      <span className="text-xs text-danger">错误 {ww.wrongCount} 次</span>
-                      <span className="text-xs text-text-tertiary">最近 {formatDate(ww.lastWrongAt)}</span>
-                      <span className="text-xs text-text-tertiary">复习 {formatDate(ww.nextReviewAt)}</span>
+                      <span className="text-xs text-danger">错误 {ww.wrongCount ?? 0} 次</span>
+                      {ww.lastWrongAt && (
+                        <span className="text-xs text-text-tertiary">最近 {formatDate(ww.lastWrongAt)}</span>
+                      )}
+                      {ww.nextReviewAt && (
+                        <span className="text-xs text-text-tertiary">复习 {formatDate(ww.nextReviewAt)}</span>
+                      )}
                     </div>
-                  </Link>
+                  </button>
                 </div>
                 <div className="flex gap-2 mt-3">
                   <button

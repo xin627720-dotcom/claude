@@ -24,12 +24,18 @@ export default function WordDetailPage({ params }: { params: Promise<{ id: strin
   const router = useRouter()
   const [word, setWord] = useState<VocabWord | null>(null)
   const [progress, setProgress] = useState<WordProgress | null>(null)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    const w = getWordById(id)
-    if (!w) return
-    setWord(w)
-    setProgress(getWordProgress(id))
+    try {
+      const w = getWordById(id)
+      setWord(w ?? null)
+      if (w) setProgress(getWordProgress(id))
+    } catch {
+      setWord(null)
+    } finally {
+      setLoaded(true)
+    }
   }, [id])
 
   const toggleFavorite = () => {
@@ -39,10 +45,34 @@ export default function WordDetailPage({ params }: { params: Promise<{ id: strin
     setProgress(updated)
   }
 
-  if (!word) {
+  if (!loaded) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-text-secondary">未找到该单词</p>
+        <p className="text-text-secondary">加载中…</p>
+      </div>
+    )
+  }
+
+  if (!word) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
+        <p className="text-4xl mb-4">⚠️</p>
+        <p className="font-semibold text-text-primary mb-1">没有找到这个单词</p>
+        <p className="text-sm text-text-tertiary mb-6">可能是旧学习记录导致，该词已从词库中移除</p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => router.push('/vocabulary')}
+            className="px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold active:scale-95 transition-all"
+          >
+            返回词库
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="px-4 py-2.5 rounded-xl bg-bg-tertiary text-text-secondary text-sm font-semibold active:scale-95 transition-all"
+          >
+            返回首页
+          </button>
+        </div>
       </div>
     )
   }

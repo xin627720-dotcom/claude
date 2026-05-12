@@ -108,6 +108,56 @@ export function getWrongWords(): Record<string, WrongWord> {
   return loadStore().wrongWords
 }
 
+/**
+ * Unified wrong-word list — single source of truth for both home page and
+ * wrong-words page.  Derives from wordProgress so it always matches the
+ * home page count.  A word is "wrong" when any of these are true:
+ *   isWrongWord === true  (set by learn page)
+ *   wrongCount > 0        (set by learn page)
+ *   quizWrongCount > 0    (set by quiz/spelling page)
+ * Legacy wrongWords records are merged in for backward compat.
+ */
+export function getWrongWordsList(): WrongWord[] {
+  const store = loadStore()
+  const entries = new Map<string, WrongWord>()
+
+  // Primary source: wordProgress
+  for (const [wordId, p] of Object.entries(store.wordProgress)) {
+    if (!p.isWrongWord && (p.wrongCount ?? 0) === 0 && (p.quizWrongCount ?? 0) === 0) continue
+    const ww = store.wrongWords?.[wordId]
+    entries.set(wordId, {
+      wordId,
+      wrongCount: ww ? ww.wrongCount : ((p.wrongCount ?? 0) + (p.quizWrongCount ?? 0)),
+      lastWrongAt: ww?.lastWrongAt ?? p.lastReviewedAt ?? p.updatedAt,
+      nextReviewAt: ww?.nextReviewAt ?? p.nextReviewAt ?? new Date().toISOString(),
+      updatedAt: p.updatedAt,
+    })
+  }
+
+  // Compat: also include legacy wrongWords entries missing from wordProgress
+  const wrongWords = store.wrongWords
+  if (wrongWords && typeof wrongWords === 'object' && !Array.isArray(wrongWords)) {
+    for (const [wordId, ww] of Object.entries(wrongWords)) {
+      if (!entries.has(wordId) && ww && typeof ww === 'object' && ww.wordId) {
+        entries.set(wordId, ww as WrongWord)
+      }
+    }
+  }
+
+  return Array.from(entries.values()).sort((a, b) => {
+    try {
+      return new Date(b.lastWrongAt).getTime() - new Date(a.lastWrongAt).getTime()
+    } catch {
+      return 0
+    }
+  })
+}
+
+/** Count using same logic as getWrongWordsList(). Use this on the home page. */
+export function getWrongWordCount(): number {
+  return getWrongWordsList().length
+}
+
 export function saveWrongWord(ww: WrongWord): void {
   const store = loadStore()
   store.wrongWords[ww.wordId] = ww
