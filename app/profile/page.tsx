@@ -155,7 +155,7 @@ export default function ProfilePage() {
           <div className="space-y-3">
             {!codeSent ? (
               <>
-                <p className="text-xs text-text-secondary">输入邮箱，发送6位验证码，安卓和 iPad 用同一邮箱即可同步</p>
+                <p className="text-xs text-text-secondary">输入邮箱，发送验证码，安卓和 iPad 用同一邮箱即可同步</p>
                 <input
                   type="email"
                   value={email}
