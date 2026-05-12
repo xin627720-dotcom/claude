@@ -7,23 +7,28 @@ import { canUseSpeech } from '@/lib/speech'
 interface WordCardProps {
   word: VocabWord
   onResult: (result: 'correct' | 'fuzzy' | 'wrong') => void
+  /**
+   * Called synchronously at the moment the user taps a result button,
+   * BEFORE the 320ms animation. Parent uses this to speak the next word
+   * while still inside the browser's user-gesture context.
+   */
+  onResultImmediate?: (result: 'correct' | 'fuzzy' | 'wrong') => void
+  onSpeak?: () => void
+  onInteract?: () => void
   isFavorite?: boolean
   onToggleFavorite?: () => void
   showProgress?: string
-  /** Parent handles speaking; called when user clicks the 🔊 button */
-  onSpeak?: () => void
-  /** Called on any button press — parent uses this to unlock speech session */
-  onInteract?: () => void
 }
 
 export default function WordCard({
   word,
   onResult,
+  onResultImmediate,
+  onSpeak,
+  onInteract,
   isFavorite = false,
   onToggleFavorite,
   showProgress,
-  onSpeak,
-  onInteract,
 }: WordCardProps) {
   const [revealed, setRevealed] = useState(false)
   const [chosen, setChosen] = useState<'correct' | 'fuzzy' | 'wrong' | null>(null)
@@ -35,42 +40,38 @@ export default function WordCard({
 
   const handleResult = useCallback(
     (result: 'correct' | 'fuzzy' | 'wrong') => {
+      // ① Notify parent SYNCHRONOUSLY — still inside the tap gesture context.
+      //    Parent must call speakWord() here for iOS Safari / mobile Chrome to allow it.
+      onResultImmediate?.(result)
       onInteract?.()
+
+      // ② Visual feedback
       setChosen(result)
+
+      // ③ After animation, hand control back to parent to change the word
       setTimeout(() => {
         setRevealed(false)
         setChosen(null)
         onResult(result)
-      }, 320)
+      }, 300)
     },
-    [onResult, onInteract]
+    [onResult, onResultImmediate, onInteract]
   )
 
-  const handleSpeak = () => {
-    onInteract?.()
-    onSpeak?.()
-  }
-
   const feedbackBg =
-    chosen === 'correct'
-      ? 'bg-green-50 border-success'
-      : chosen === 'wrong'
-      ? 'bg-red-50 border-danger'
-      : chosen === 'fuzzy'
-      ? 'bg-orange-50 border-warning'
-      : 'bg-white border-transparent'
+    chosen === 'correct' ? 'bg-green-50 border-success' :
+    chosen === 'wrong'   ? 'bg-red-50 border-danger' :
+    chosen === 'fuzzy'   ? 'bg-orange-50 border-warning' :
+                           'bg-white border-transparent'
 
   return (
     <div className={`relative rounded-xl shadow-card border-2 transition-all duration-200 overflow-hidden ${feedbackBg}`}>
-      {/* Header bar */}
+      {/* Header */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        {showProgress && (
-          <span className="text-xs text-text-tertiary">{showProgress}</span>
-        )}
+        {showProgress && <span className="text-xs text-text-tertiary">{showProgress}</span>}
         <div className="ml-auto flex items-center gap-3">
-          {/* Speak button */}
           <button
-            onClick={handleSpeak}
+            onClick={() => { onInteract?.(); onSpeak?.() }}
             className="p-1.5 rounded-full text-text-tertiary active:text-accent active:scale-95 transition-all"
             aria-label="朗读"
             title={canUseSpeech() ? '朗读' : '当前浏览器不支持朗读'}
@@ -79,19 +80,12 @@ export default function WordCard({
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v11.494m0 0l-2.53-2.53M12 17.747l2.53-2.53M6.343 9.343a8 8 0 000 5.314m10-5.314a8 8 0 010 5.314" />
             </svg>
           </button>
-          {/* Favorite */}
           {onToggleFavorite && (
-            <button
-              onClick={onToggleFavorite}
-              className="p-1.5 rounded-full active:scale-95 transition-all"
-              aria-label="收藏"
-            >
+            <button onClick={onToggleFavorite} className="p-1.5 rounded-full active:scale-95 transition-all" aria-label="收藏">
               <svg
                 className={`w-5 h-5 ${isFavorite ? 'text-yellow-400' : 'text-text-tertiary'}`}
                 fill={isFavorite ? 'currentColor' : 'none'}
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.8}
+                viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
               </svg>
@@ -106,7 +100,6 @@ export default function WordCard({
         <p className="text-sm text-text-tertiary mt-1">{word.pos}</p>
       </div>
 
-      {/* Reveal area */}
       {!revealed ? (
         <button
           onClick={handleReveal}
@@ -128,28 +121,15 @@ export default function WordCard({
               <p className="text-xs text-text-secondary mt-1">{word.examples[0].zh}</p>
             </div>
           )}
-          {/* Action buttons */}
           <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleResult('wrong')}
-              className="flex flex-col items-center gap-1 py-3 rounded-md bg-red-50 text-danger font-medium text-sm active:scale-95 transition-all"
-            >
-              <span className="text-lg">✗</span>
-              <span className="text-xs">不认识</span>
+            <button onClick={() => handleResult('wrong')} className="flex flex-col items-center gap-1 py-3 rounded-md bg-red-50 text-danger font-medium text-sm active:scale-95 transition-all">
+              <span className="text-lg">✗</span><span className="text-xs">不认识</span>
             </button>
-            <button
-              onClick={() => handleResult('fuzzy')}
-              className="flex flex-col items-center gap-1 py-3 rounded-md bg-orange-50 text-warning font-medium text-sm active:scale-95 transition-all"
-            >
-              <span className="text-lg">~</span>
-              <span className="text-xs">模糊</span>
+            <button onClick={() => handleResult('fuzzy')} className="flex flex-col items-center gap-1 py-3 rounded-md bg-orange-50 text-warning font-medium text-sm active:scale-95 transition-all">
+              <span className="text-lg">~</span><span className="text-xs">模糊</span>
             </button>
-            <button
-              onClick={() => handleResult('correct')}
-              className="flex flex-col items-center gap-1 py-3 rounded-md bg-green-50 text-success font-medium text-sm active:scale-95 transition-all"
-            >
-              <span className="text-lg">✓</span>
-              <span className="text-xs">认识</span>
+            <button onClick={() => handleResult('correct')} className="flex flex-col items-center gap-1 py-3 rounded-md bg-green-50 text-success font-medium text-sm active:scale-95 transition-all">
+              <span className="text-lg">✓</span><span className="text-xs">认识</span>
             </button>
           </div>
         </div>
