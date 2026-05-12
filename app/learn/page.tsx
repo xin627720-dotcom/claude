@@ -10,7 +10,6 @@ import {
   canUseSpeech,
   speakWord,
   stopSpeech,
-  unlockSpeechEngine,
   getAutoSpeakEnabled,
   getSpeechUnlocked,
   persistSpeechUnlocked,
@@ -30,36 +29,33 @@ export default function LearnPage() {
   const [autoSpeakEnabled, setAutoSpeakEnabled] = useState(true)
   /**
    * speechUnlocked: true once the user has clicked any button this session.
-   * Required because browsers (especially iOS Safari) block SpeechSynthesis
-   * until a user-gesture has occurred. We persist this in sessionStorage so
-   * it survives navigation within the same tab without needing a click every time.
+   * Browsers block speechSynthesis until a user-gesture fires (especially iOS Safari).
+   * Persisted in sessionStorage so it survives same-tab navigation.
    */
   const [speechUnlocked, setSpeechUnlocked] = useState(false)
   const [speechSupported, setSpeechSupported] = useState(false)
-  const [speaking, setSpeaking] = useState(false)
-  /** Tracks the last word ID we auto-spoke to prevent duplicate calls on re-render */
+  /** Last word ID spoken — prevents the backup useEffect from double-speaking */
   const lastSpokenWordRef = useRef<string | null>(null)
+  /** Next queue index, written by handleResultImmediate, read by handleResult */
+  const nextIndexRef = useRef<number>(0)
 
   // ── Init ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const supported = canUseSpeech()
-    setSpeechSupported(supported)
+    setSpeechSupported(canUseSpeech())
     setAutoSpeakEnabled(getAutoSpeakEnabled())
 
-    // Restore speech unlock state from this session (user already clicked before)
     const alreadyUnlocked = getSpeechUnlocked()
     if (alreadyUnlocked) setSpeechUnlocked(true)
 
-    // Build review queue
     const progressMap = Object.fromEntries(
       allWords.map((w) => [w.id, getWordProgress(w.id)])
     )
-    const q = buildReviewQueue(allWords.map((w) => w.id), progressMap)
-    const limited = q.slice(0, 30)
-    setQueue(limited)
+    const q = buildReviewQueue(allWords.map((w) => w.id), progressMap).slice(0, 30)
+    setQueue(q)
     setIndex(0)
-    if (limited.length > 0) {
-      setCurrentWord(getWordById(limited[0]) ?? null)
+    nextIndexRef.current = 0
+    if (q.length > 0) {
+      setCurrentWord(getWordById(q[0]) ?? null)
     } else {
       setDone(true)
     }
@@ -67,71 +63,80 @@ export default function LearnPage() {
     return () => stopSpeech()
   }, [])
 
-  // ── Auto-speak when word changes ─────────────────────────────────────────────
+  // ── Backup auto-speak ─────────────────────────────────────────────────────────
+  // Primary speech happens synchronously in gesture handlers below.
+  // This useEffect catches edge cases (e.g. speech already unlocked, page reload).
   useEffect(() => {
-    console.debug('[AutoSpeak] effect', {
-      wordId: currentWord?.id,
-      autoSpeakEnabled,
-      speechUnlocked,
-      speechSupported,
-      lastSpoken: lastSpokenWordRef.current,
-    })
-
     if (!autoSpeakEnabled || !speechUnlocked || !speechSupported) return
     if (!currentWord?.word) return
-    // Only speak when the word actually changed — not on unrelated re-renders
     if (lastSpokenWordRef.current === currentWord.id) return
 
     lastSpokenWordRef.current = currentWord.id
-    console.debug('[AutoSpeak] calling speakWord:', currentWord.word)
-    speakWord(currentWord.word, {
-      onStart: () => setSpeaking(true),
-      onEnd: () => setSpeaking(false),
-    })
+    console.debug('[AutoSpeak] backup useEffect:', currentWord.word)
+    speakWord(currentWord.word)
   }, [currentWord?.id, autoSpeakEnabled, speechUnlocked, speechSupported])
-  // NOTE: intentionally depend on currentWord?.id (not the whole object) so
-  // toggling isFavorite or other progress changes don't re-trigger speech.
 
-  // ── Unlock speech (must be called inside a user-gesture handler) ─────────────
+  // ── Unlock helper ─────────────────────────────────────────────────────────────
   const unlockSpeech = useCallback(() => {
     if (speechUnlocked) return
-    // iOS Safari warm-up: a zero-volume utterance inside a click handler
-    unlockSpeechEngine()
     persistSpeechUnlocked()
     setSpeechUnlocked(true)
-    // The auto-speak useEffect will fire automatically because speechUnlocked changed,
-    // and lastSpokenWordRef.current won't match the current word (it was never set
-    // while unlocked was false), so the word will be spoken.
   }, [speechUnlocked])
 
-  // ── Manual speak button ───────────────────────────────────────────────────────
+  // ── "开始学习并开启发音" button ───────────────────────────────────────────────
+  // Called inside a click gesture → speakWord allowed by browser autoplay policy.
+  const handleStartWithSpeech = useCallback(() => {
+    if (!currentWord) return
+    persistSpeechUnlocked()
+    setSpeechUnlocked(true)
+    lastSpokenWordRef.current = currentWord.id
+    console.debug('[Speech] handleStartWithSpeech:', currentWord.word)
+    speakWord(currentWord.word)
+  }, [currentWord])
+
+  // ── Manual 🔊 button ──────────────────────────────────────────────────────────
   const handleSpeak = useCallback(() => {
     if (!currentWord || !canUseSpeech()) return
-    // Unlock on first click (synchronous, inside a gesture handler)
     if (!speechUnlocked) {
-      unlockSpeechEngine()
       persistSpeechUnlocked()
       setSpeechUnlocked(true)
     }
-    // Speak immediately and update ref so useEffect doesn't double-speak
     lastSpokenWordRef.current = currentWord.id
-    speakWord(currentWord.word, {
-      onStart: () => setSpeaking(true),
-      onEnd: () => setSpeaking(false),
-    })
+    console.debug('[Speech] handleSpeak:', currentWord.word)
+    speakWord(currentWord.word)
   }, [currentWord, speechUnlocked])
 
-  // ── Result handler ────────────────────────────────────────────────────────────
-  const handleResult = useCallback(
-    (result: 'correct' | 'fuzzy' | 'wrong') => {
-      if (!currentWord) return
-
-      // Unlock speech on first result click (inside user-gesture handler)
+  // ── Called synchronously when user taps a result button ───────────────────────
+  // WordCard calls this BEFORE its 300ms animation, so we're still inside the
+  // browser's user-gesture context — speechSynthesis.speak() is allowed here.
+  const handleResultImmediate = useCallback(
+    (_result: 'correct' | 'fuzzy' | 'wrong') => {
+      // Always update unlock state (even if autoSpeak is off, unlock for manual use)
       if (!speechUnlocked) {
-        unlockSpeechEngine()
         persistSpeechUnlocked()
         setSpeechUnlocked(true)
       }
+
+      const next = index + 1
+      nextIndexRef.current = next
+
+      if (!autoSpeakEnabled || !speechSupported) return
+      if (next >= queue.length) return
+
+      const nextWord = getWordById(queue[next])
+      if (nextWord) {
+        lastSpokenWordRef.current = nextWord.id
+        console.debug('[Speech] handleResultImmediate → next word:', nextWord.word)
+        speakWord(nextWord.word)
+      }
+    },
+    [autoSpeakEnabled, speechSupported, speechUnlocked, index, queue]
+  )
+
+  // ── Result handler (called after 300ms animation) ─────────────────────────────
+  const handleResult = useCallback(
+    (result: 'correct' | 'fuzzy' | 'wrong') => {
+      if (!currentWord) return
 
       const prev = getWordProgress(currentWord.id)
       const updated = updateProgressAfterReview(prev, result)
@@ -153,7 +158,7 @@ export default function LearnPage() {
         updatedAt: new Date().toISOString(),
       })
 
-      const next = index + 1
+      const next = nextIndexRef.current
       if (next >= queue.length) {
         setDone(true)
         trySyncInBackground()
@@ -161,9 +166,8 @@ export default function LearnPage() {
       }
       setIndex(next)
       setCurrentWord(getWordById(queue[next]) ?? null)
-      // auto-speak useEffect fires automatically when currentWord changes
     },
-    [currentWord, index, queue, sessionCount, speechUnlocked]
+    [currentWord, queue, sessionCount]
   )
 
   const handleFavorite = useCallback(() => {
@@ -187,6 +191,7 @@ export default function LearnPage() {
               setIndex(0)
               setSessionCount(0)
               lastSpokenWordRef.current = null
+              nextIndexRef.current = 0
               const progressMap = Object.fromEntries(
                 allWords.map((w) => [w.id, getWordProgress(w.id)])
               )
@@ -220,36 +225,6 @@ export default function LearnPage() {
 
   const isFav = getWordProgress(currentWord.id).isFavorite
 
-  // ── Speech status badge ───────────────────────────────────────────────────────
-  let speakStatusNode: React.ReactNode = null
-  if (!speechSupported) {
-    speakStatusNode = <span className="text-xs text-text-tertiary">当前浏览器不支持朗读</span>
-  } else if (autoSpeakEnabled && speaking) {
-    speakStatusNode = (
-      <span className="text-xs text-text-tertiary flex items-center gap-1 animate-pulse">
-        <span>🔊</span><span>正在发音…</span>
-      </span>
-    )
-  } else if (autoSpeakEnabled && !speechUnlocked) {
-    speakStatusNode = (
-      <span className="text-xs text-text-tertiary">
-        首次使用请点一下🔊或任意学习按钮，之后将自动发音
-      </span>
-    )
-  } else if (autoSpeakEnabled) {
-    speakStatusNode = (
-      <span className="text-xs text-success flex items-center gap-1">
-        <span>🔊</span><span>自动发音：已开启</span>
-      </span>
-    )
-  } else {
-    speakStatusNode = (
-      <span className="text-xs text-text-tertiary flex items-center gap-1">
-        <span>🔇</span><span>自动发音：已关闭</span>
-      </span>
-    )
-  }
-
   return (
     <div className="px-4 pt-12 animate-fade-up">
       {/* Back + title */}
@@ -271,14 +246,36 @@ export default function LearnPage() {
         />
       </div>
 
+      {/* First-time unlock prompt */}
+      {speechSupported && autoSpeakEnabled && !speechUnlocked && (
+        <button
+          onClick={handleStartWithSpeech}
+          className="w-full mb-3 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-sm"
+        >
+          <span>🔊</span>
+          <span>开始学习并开启发音</span>
+        </button>
+      )}
+
       {/* Speech status — fixed height to avoid layout shift */}
       <div className="flex justify-center items-center h-6 mb-2">
-        {speakStatusNode}
+        {!speechSupported ? (
+          <span className="text-xs text-text-tertiary">当前浏览器不支持朗读</span>
+        ) : autoSpeakEnabled && speechUnlocked ? (
+          <span className="text-xs text-success flex items-center gap-1">
+            <span>🔊</span><span>自动发音：已开启</span>
+          </span>
+        ) : !autoSpeakEnabled ? (
+          <span className="text-xs text-text-tertiary flex items-center gap-1">
+            <span>🔇</span><span>自动发音：已关闭</span>
+          </span>
+        ) : null}
       </div>
 
       <WordCard
         word={currentWord}
         onResult={handleResult}
+        onResultImmediate={handleResultImmediate}
         isFavorite={isFav}
         onToggleFavorite={handleFavorite}
         showProgress={`${index + 1} / ${queue.length}`}
