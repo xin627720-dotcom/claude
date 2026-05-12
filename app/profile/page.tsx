@@ -68,7 +68,7 @@ export default function ProfilePage() {
   }
 
   const handleVerifyOtp = async () => {
-    if (otp.length < 6) return
+    if (!/^[0-9]{6,10}$/.test(otp)) return
     setLoginError('')
     setVerifying(true)
     const { error } = await verifyOtp(email, otp.trim())
@@ -176,22 +176,22 @@ export default function ProfilePage() {
             ) : (
               <>
                 <p className="text-xs text-text-secondary">
-                  验证码已发送至 <strong>{email}</strong>，请输入收到的6位数字
+                  验证码已发送至 <strong>{email}</strong>，请输入收到的验证码
                 </p>
                 <input
                   type="text"
                   inputMode="numeric"
-                  maxLength={6}
+                  maxLength={10}
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  onKeyDown={(e) => e.key === 'Enter' && otp.length === 6 && handleVerifyOtp()}
-                  placeholder="123456"
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  onKeyDown={(e) => e.key === 'Enter' && /^[0-9]{6,10}$/.test(otp) && handleVerifyOtp()}
+                  placeholder="验证码"
                   className="w-full rounded-lg px-4 py-3 text-sm bg-bg-primary border border-bg-tertiary outline-none focus:border-accent text-text-primary tracking-widest text-center text-xl font-bold"
                 />
                 {loginError && <p className="text-xs text-danger">{loginError}</p>}
                 <button
                   onClick={handleVerifyOtp}
-                  disabled={otp.length < 6 || verifying}
+                  disabled={!/^[0-9]{6,10}$/.test(otp) || verifying}
                   className="w-full py-3 rounded-xl bg-accent text-white font-semibold text-sm disabled:opacity-40 active:scale-[0.97] transition-all"
                 >
                   {verifying ? '验证中…' : '验证登录'}
