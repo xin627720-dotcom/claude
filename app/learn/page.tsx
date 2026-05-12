@@ -18,15 +18,12 @@ export default function LearnPage() {
   const [sessionCount, setSessionCount] = useState(0)
   const [currentWord, setCurrentWord] = useState<VocabWord | null>(null)
 
-  // Auto-speak state
-  const [autoSpeakOn, setAutoSpeakOn] = useState(false) // loaded in useEffect
+  const [autoSpeakOn, setAutoSpeakOn] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [speakBlocked, setSpeakBlocked] = useState(false)
+  // Tracks which word ID was last auto-spoken to prevent duplicate speaks on re-render
   const lastSpokenId = useRef<string | null>(null)
-  // True once the user clicks any interactive element on the page
-  const userInteracted = useRef(false)
 
-  // Load settings + build queue
   useEffect(() => {
     setAutoSpeakOn(getAutoSpeakEnabled())
 
@@ -43,58 +40,21 @@ export default function LearnPage() {
       setDone(true)
     }
 
-    // Stop any ongoing speech on unmount
     return () => stopSpeaking()
   }, [])
 
-  // Auto-speak when current word changes
+  // Auto-speak whenever current word changes
   useEffect(() => {
-    if (!currentWord || !autoSpeakOn) return
-    // Prevent re-speaking the same word on unrelated re-renders
-    if (lastSpokenId.current === currentWord.id) return
-    lastSpokenId.current = currentWord.id
-
-    if (!canSpeak()) return
-
-    // Only auto-speak once user has interacted (browser autoplay policy)
-    if (!userInteracted.current) {
-      setSpeakBlocked(true)
-      return
-    }
-
-    setSpeakBlocked(false)
-    const cleanup = speakTextTracked(currentWord.word, {
-      rate: 0.85,
-      onStart: () => setIsSpeaking(true),
-      onEnd: () => setIsSpeaking(false),
-      onBlocked: () => {
-        setSpeakBlocked(true)
-        setIsSpeaking(false)
-      },
-    })
-    return cleanup
-  }, [currentWord, autoSpeakOn])
-
-  // Called by WordCard on any user interaction to unlock autoplay
-  const handleInteract = useCallback(() => {
-    if (userInteracted.current) return
-    userInteracted.current = true
-    setSpeakBlocked(false)
-
-    // Trigger speak for the current word if it hasn't been spoken yet
     if (!currentWord || !autoSpeakOn || !canSpeak()) return
     if (lastSpokenId.current === currentWord.id) return
     lastSpokenId.current = currentWord.id
-    const cleanup = speakTextTracked(currentWord.word, {
+
+    return speakTextTracked(currentWord.word, {
       rate: 0.85,
-      onStart: () => setIsSpeaking(true),
+      onStart: () => { setIsSpeaking(true); setSpeakBlocked(false) },
       onEnd: () => setIsSpeaking(false),
-      onBlocked: () => {
-        setSpeakBlocked(true)
-        setIsSpeaking(false)
-      },
+      onBlocked: () => { setSpeakBlocked(true); setIsSpeaking(false) },
     })
-    return cleanup
   }, [currentWord, autoSpeakOn])
 
   const handleResult = useCallback(
@@ -206,18 +166,16 @@ export default function LearnPage() {
         />
       </div>
 
-      {/* Auto-speak status indicators */}
+      {/* Speak status */}
       <div className="h-5 mb-2 flex items-center justify-center">
-        {autoSpeakOn && speakBlocked && !isSpeaking && (
-          <p className="text-xs text-text-tertiary flex items-center gap-1">
-            <span>🔇</span>
-            <span>点击任意按钮后，将自动开启发音</span>
-          </p>
-        )}
         {autoSpeakOn && isSpeaking && (
           <p className="text-xs text-text-tertiary flex items-center gap-1 animate-pulse">
-            <span>🔊</span>
-            <span>正在发音…</span>
+            <span>🔊</span><span>正在发音…</span>
+          </p>
+        )}
+        {autoSpeakOn && speakBlocked && !isSpeaking && (
+          <p className="text-xs text-text-tertiary flex items-center gap-1">
+            <span>🔇</span><span>点击朗读按钮可手动播放</span>
           </p>
         )}
         {!canSpeak() && (
@@ -231,10 +189,8 @@ export default function LearnPage() {
         isFavorite={isFav}
         onToggleFavorite={handleFavorite}
         showProgress={`${index + 1} / ${queue.length}`}
-        onInteract={handleInteract}
       />
 
-      {/* tip */}
       <p className="text-center text-xs text-text-tertiary mt-5">
         ✓ 认识 +2分 · ~ 模糊 +1分 · ✗ 不认识 加入错词本
       </p>

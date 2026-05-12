@@ -10,8 +10,6 @@ interface WordCardProps {
   isFavorite?: boolean
   onToggleFavorite?: () => void
   showProgress?: string
-  /** Called on any user interaction (used by parent to unlock autoplay) */
-  onInteract?: () => void
 }
 
 export default function WordCard({
@@ -20,20 +18,17 @@ export default function WordCard({
   isFavorite = false,
   onToggleFavorite,
   showProgress,
-  onInteract,
 }: WordCardProps) {
   const [revealed, setRevealed] = useState(false)
   const [chosen, setChosen] = useState<'correct' | 'fuzzy' | 'wrong' | null>(null)
 
   const handleReveal = () => {
-    onInteract?.()
     if (!revealed) speakText(word.word)
     setRevealed(true)
   }
 
   const handleResult = useCallback(
     (result: 'correct' | 'fuzzy' | 'wrong') => {
-      onInteract?.()
       setChosen(result)
       setTimeout(() => {
         setRevealed(false)
@@ -41,7 +36,7 @@ export default function WordCard({
         onResult(result)
       }, 320)
     },
-    [onResult, onInteract]
+    [onResult]
   )
 
   const feedbackBg =
@@ -63,7 +58,7 @@ export default function WordCard({
         <div className="ml-auto flex items-center gap-3">
           {/* Speak button */}
           <button
-            onClick={() => { onInteract?.(); speakText(word.word) }}
+            onClick={() => speakText(word.word)}
             className="p-1.5 rounded-full text-text-tertiary active:text-accent active:scale-95 transition-all"
             aria-label="朗读"
             title={canSpeak() ? '朗读' : '当前浏览器不支持朗读'}
