@@ -1,0 +1,870 @@
+{
+  "abandon": {
+    "pronunciation": "/əˈbændən/",
+    "frequencyLevel": "中频",
+    "examScenes": ["完形填空", "阅读理解"],
+    "commonMeaningsInExam": ["放弃", "抛弃"],
+    "commonTraps": ["名词形式是abandonment，不是*abandonation"],
+    "examTips": ["常见搭配：abandon a plan/hope/idea", "情感/励志类文章常见"],
+    "gaokaoExamples": [
+      {"en": "She abandoned her plan to study abroad due to family reasons.", "zh": "由于家庭原因，她放弃了出国留学的计划。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "We should never abandon our dreams, no matter how difficult things get.", "zh": "无论多困难，我们都不应该放弃梦想。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "abandonment", "pos": "n.", "meaning": "放弃；遗弃", "relation": "noun"},
+      {"word": "abandoned", "pos": "adj.", "meaning": "被遗弃的；无拘束的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "abandon hope/a plan", "meaning": "放弃希望/计划"},
+      {"phrase": "abandon oneself to sth.", "meaning": "沉溺于某事"},
+      {"phrase": "be abandoned", "meaning": "被遗弃"}
+    ],
+    "confusingWords": [
+      {"word": "give up", "meaning": "放弃（口语）", "difference": "give up为口语表达；abandon更书面正式"},
+      {"word": "desert", "meaning": "遗弃（尤指应照顾的人）", "difference": "desert强调对有责任照顾对象的抛弃，abandon更泛用"}
+    ],
+    "memoryTip": "a-band-on：一支乐队(band)离开了舞台(on) → 放弃、抛弃",
+    "usageNote": "abandon sth. / abandon doing sth.（不用abandon to do）"
+  },
+  "ability": {
+    "pronunciation": "/əˈbɪlɪti/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["能力", "才能"],
+    "commonTraps": ["ability to do sth.（不是 ability of doing sth.）"],
+    "examTips": ["写作高频：have the ability to do sth.", "常与develop, improve, enhance搭配"],
+    "gaokaoExamples": [
+      {"en": "Reading widely can help students develop their ability to think critically.", "zh": "广泛阅读有助于学生培养批判性思维能力。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "She showed great ability in solving complex problems.", "zh": "她在解决复杂问题方面展现出了极强的能力。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "able", "pos": "adj.", "meaning": "有能力的", "relation": "adjective"},
+      {"word": "unable", "pos": "adj.", "meaning": "无能力的", "relation": "adjective"},
+      {"word": "enable", "pos": "v.", "meaning": "使能够", "relation": "verb"},
+      {"word": "disability", "pos": "n.", "meaning": "残疾；无能力", "relation": "noun"}
+    ],
+    "collocationItems": [
+      {"phrase": "have the ability to do sth.", "meaning": "有做某事的能力"},
+      {"phrase": "develop / improve one's ability", "meaning": "培养/提升能力"},
+      {"phrase": "to the best of one's ability", "meaning": "尽某人最大努力"}
+    ],
+    "confusingWords": [
+      {"word": "capability", "meaning": "（更正式）能力；潜力", "difference": "capability偏指客观具备的潜力；ability偏指实际表现出的能力"},
+      {"word": "skill", "meaning": "技能（通过训练获得）", "difference": "skill强调通过练习掌握的具体技能；ability更宏观"}
+    ],
+    "memoryTip": "able（有能力的）+ -ity（名词后缀）= ability（能力）",
+    "usageNote": "ability TO do sth. ✓  ability OF doing ✗"
+  },
+  "achieve": {
+    "pronunciation": "/əˈtʃiːv/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["实现（目标）", "取得（成就）", "达到"],
+    "commonTraps": ["名词achievement注意拼写（中间是ie，不是ei）"],
+    "examTips": ["写作超高频：achieve one's goal/dream/success", "常考励志类语境"],
+    "gaokaoExamples": [
+      {"en": "With hard work and determination, you can achieve anything you set your mind to.", "zh": "只要勤奋努力、坚定意志，你就能实现任何你下定决心要做的事。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The project team finally achieved their goal after months of hard work.", "zh": "经过数月努力，项目团队终于实现了他们的目标。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "achievement", "pos": "n.", "meaning": "成就；完成", "relation": "noun"},
+      {"word": "achievable", "pos": "adj.", "meaning": "可实现的", "relation": "adjective"},
+      {"word": "high-achiever", "pos": "n.", "meaning": "成绩优秀者", "relation": "compound"}
+    ],
+    "collocationItems": [
+      {"phrase": "achieve a goal / dream", "meaning": "实现目标/梦想"},
+      {"phrase": "achieve success", "meaning": "取得成功"},
+      {"phrase": "achieve a balance", "meaning": "取得平衡"}
+    ],
+    "confusingWords": [
+      {"word": "accomplish", "meaning": "完成（具体任务）", "difference": "accomplish强调成功完成某项具体任务；achieve更侧重实现目标或梦想"},
+      {"word": "attain", "meaning": "达到（书面）", "difference": "attain多用于书面语，achieve更常用"}
+    ],
+    "memoryTip": "ach-ieve：'啊！'(ach) 终于实现(ieve)了！",
+    "usageNote": "achieve sth. 直接接宾语，不用achieve to do"
+  },
+  "affect": {
+    "pronunciation": "/əˈfekt/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["影响（动词）", "对...产生（通常负面）影响"],
+    "commonTraps": ["affect是动词；effect通常是名词——高考超高频易混点"],
+    "examTips": ["affect + 宾语（直接接名词）", "不要写成 have affect on（正确：have an effect on）"],
+    "gaokaoExamples": [
+      {"en": "Air pollution seriously affects people's health, especially in large cities.", "zh": "空气污染严重影响人们的健康，尤其是在大城市。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The weather can greatly affect our mood and productivity.", "zh": "天气会极大地影响我们的情绪和工作效率。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "effect", "pos": "n.", "meaning": "效果；影响（名词）", "relation": "related"},
+      {"word": "affection", "pos": "n.", "meaning": "感情；喜爱", "relation": "noun"},
+      {"word": "affective", "pos": "adj.", "meaning": "情感的", "relation": "adjective"},
+      {"word": "unaffected", "pos": "adj.", "meaning": "未受影响的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "affect sb./sth.", "meaning": "影响某人/某物"},
+      {"phrase": "seriously / greatly affect", "meaning": "严重/极大地影响"},
+      {"phrase": "be affected by", "meaning": "受...影响"}
+    ],
+    "confusingWords": [
+      {"word": "effect", "meaning": "n. 效果，影响；v.（正式）使产生", "difference": "affect是动词：sth. affects sb.；effect通常是名词：have an effect on"},
+      {"word": "influence", "meaning": "v./n. 影响（更广义，潜移默化）", "difference": "influence强调潜移默化的影响；affect更强调直接的（通常负面）作用"}
+    ],
+    "memoryTip": "affect打头A = Action（动作）→ 动词；effect打头E = End result → 名词",
+    "usageNote": "affect作动词：sth. affects sb./sth.；effect作名词：have an effect on"
+  },
+  "approach": {
+    "pronunciation": "/əˈprəʊtʃ/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["方法，方式（n.）", "接近，靠近（v.）", "处理（v.）"],
+    "commonTraps": ["approach to doing sth.（介词to后接动名词）"],
+    "examTips": ["写作高频：a new approach to...", "既作名词（方法）又作动词（靠近/处理）"],
+    "gaokaoExamples": [
+      {"en": "Teachers should adopt different approaches to teaching students with different learning styles.", "zh": "教师应采用不同方法来教导学习方式各异的学生。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "As the exam approached, students began to feel more nervous.", "zh": "随着考试临近，学生们开始感到更加紧张。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "approachable", "pos": "adj.", "meaning": "平易近人的；可接近的", "relation": "adjective"},
+      {"word": "unapproachable", "pos": "adj.", "meaning": "难以接近的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "an approach to doing sth.", "meaning": "...的方法"},
+      {"phrase": "approach a problem", "meaning": "处理/应对问题"},
+      {"phrase": "take a new approach", "meaning": "采取新方式"}
+    ],
+    "confusingWords": [
+      {"word": "method", "meaning": "方法（更具体）", "difference": "method指具体系统的步骤；approach更侧重整体思路和角度"},
+      {"word": "way", "meaning": "方式（最通用口语）", "difference": "way最口语；approach书面性更强"}
+    ],
+    "memoryTip": "ap-proach：向前(ap-)靠近，像reach向前伸出手",
+    "usageNote": "作名词：an approach to doing sth.；作动词：approach sb./sth.（不需要介词）"
+  },
+  "attitude": {
+    "pronunciation": "/ˈætɪtjuːd/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["态度", "看法"],
+    "commonTraps": ["attitude to/towards sth. 两个介词都正确"],
+    "examTips": ["写作高频：one's attitude towards/to...", "阅读理解常考作者对某话题的attitude"],
+    "gaokaoExamples": [
+      {"en": "A positive attitude towards learning can greatly improve your academic performance.", "zh": "对学习持积极的态度可以极大地提升学业成绩。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The author's attitude towards the use of technology in schools is clearly positive.", "zh": "作者对学校使用技术持明显积极的态度。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "attitudinal", "pos": "adj.", "meaning": "态度上的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "attitude to/towards sth.", "meaning": "对...的态度"},
+      {"phrase": "a positive/negative attitude", "meaning": "积极/消极的态度"},
+      {"phrase": "change one's attitude", "meaning": "改变态度"}
+    ],
+    "confusingWords": [
+      {"word": "opinion", "meaning": "意见，看法（偏理性判断）", "difference": "opinion更强调理性观点；attitude更强调情感倾向"},
+      {"word": "view", "meaning": "观点，看法", "difference": "view偏理性观点；attitude偏主观态度和心理倾向"}
+    ],
+    "memoryTip": "attitude（态度）≈ altitude（高度）：你的态度决定你的高度",
+    "usageNote": "attitude TO/TOWARDS sth. 均可；后接名词或动名词"
+  },
+  "benefit": {
+    "pronunciation": "/ˈbenɪfɪt/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["好处，益处（n.）", "有益于（v.）"],
+    "commonTraps": ["benefit from sth.（受益于）；benefit sb.（使某人受益，动词直接接宾语）"],
+    "examTips": ["写作必备：the benefits of...", "常与advantage对比"],
+    "gaokaoExamples": [
+      {"en": "Regular exercise has many benefits for both physical and mental health.", "zh": "定期锻炼对身心健康都有很多好处。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Students can benefit greatly from participating in after-school activities.", "zh": "学生参加课外活动可以获益匪浅。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "beneficial", "pos": "adj.", "meaning": "有益的", "relation": "adjective"},
+      {"word": "beneficiary", "pos": "n.", "meaning": "受益者", "relation": "noun"},
+      {"word": "benefactor", "pos": "n.", "meaning": "恩人；捐助者", "relation": "noun"}
+    ],
+    "collocationItems": [
+      {"phrase": "benefit from sth.", "meaning": "从...中受益"},
+      {"phrase": "for the benefit of", "meaning": "为了...的利益/好处"},
+      {"phrase": "mutual benefit", "meaning": "互利"}
+    ],
+    "confusingWords": [
+      {"word": "advantage", "meaning": "优势，有利条件", "difference": "advantage强调比较中的优势；benefit强调带来的好处"},
+      {"word": "profit", "meaning": "利润（偏经济）", "difference": "profit偏指经济收益；benefit更广泛"}
+    ],
+    "memoryTip": "bene（好的，拉丁语）+ fit（合适）= 好处",
+    "usageNote": "benefit sb.（动词直接接宾语）；benefit from sth.（受益于）"
+  },
+  "challenge": {
+    "pronunciation": "/ˈtʃælɪndʒ/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["挑战（n.）", "挑战，质疑（v.）"],
+    "commonTraps": ["face/meet a challenge（面对/迎接挑战）；be faced with challenges"],
+    "examTips": ["写作必备：面对挑战、迎接挑战", "高考作文常见话题"],
+    "gaokaoExamples": [
+      {"en": "Young people today face many challenges, such as academic pressure and career competition.", "zh": "当今年轻人面临许多挑战，如学业压力和职业竞争。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Meeting new challenges is an important part of growing up.", "zh": "迎接新挑战是成长的重要组成部分。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "challenging", "pos": "adj.", "meaning": "有挑战性的", "relation": "adjective"},
+      {"word": "challenger", "pos": "n.", "meaning": "挑战者", "relation": "noun"}
+    ],
+    "collocationItems": [
+      {"phrase": "face / meet a challenge", "meaning": "面临/迎接挑战"},
+      {"phrase": "accept a challenge", "meaning": "接受挑战"},
+      {"phrase": "a great challenge", "meaning": "巨大挑战"}
+    ],
+    "confusingWords": [
+      {"word": "difficulty", "meaning": "困难（更中性）", "difference": "difficulty偏中性；challenge带积极含义，暗示可以克服"},
+      {"word": "obstacle", "meaning": "障碍（阻碍前进的）", "difference": "obstacle强调阻碍性；challenge强调需要努力应对的考验"}
+    ],
+    "memoryTip": "想象：challenge = change + llenge → 迎接变化才是真正的挑战",
+    "usageNote": "face/meet/accept a challenge；challenging作形容词：a challenging task"
+  },
+  "concern": {
+    "pronunciation": "/kənˈsɜːn/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["担心，忧虑（n./v.）", "涉及，与...有关（v.）", "关心（n./v.）"],
+    "commonTraps": ["be concerned about（担心）vs be concerned with（涉及/关于）——高频考点"],
+    "examTips": ["高考阅读常见：express concern about...", "as far as...is concerned（就...而言）是写作好用句型"],
+    "gaokaoExamples": [
+      {"en": "There is growing concern about the impact of social media on teenagers' mental health.", "zh": "人们对社交媒体对青少年心理健康影响的担忧日益增加。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "As far as environmental protection is concerned, everyone has a responsibility.", "zh": "就环境保护而言，每个人都有责任。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "concerned", "pos": "adj.", "meaning": "担心的；有关的", "relation": "adjective"},
+      {"word": "concerning", "pos": "prep.", "meaning": "关于", "relation": "preposition"}
+    ],
+    "collocationItems": [
+      {"phrase": "be concerned about sth.", "meaning": "担心某事"},
+      {"phrase": "be concerned with sth.", "meaning": "与某事有关"},
+      {"phrase": "as far as...is concerned", "meaning": "就...而言"},
+      {"phrase": "express concern", "meaning": "表达担忧"}
+    ],
+    "confusingWords": [
+      {"word": "worry", "meaning": "担心（更口语）", "difference": "worry偏口语；concern更正式，且含义更广（不只担心，还有关心）"},
+      {"word": "relate to", "meaning": "涉及，与...有关", "difference": "relate to作'涉及'解时与concern with类似，但更口语"}
+    ],
+    "memoryTip": "con（共同）+ cern（辨别，拉丁语）→ 共同关注辨别的事 → 关心，担心",
+    "usageNote": "be concerned ABOUT（担忧）；be concerned WITH（关于，涉及）"
+  },
+  "consider": {
+    "pronunciation": "/kənˈsɪdə(r)/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["考虑", "认为"],
+    "commonTraps": ["consider doing（考虑做）不是 consider to do；consider sb./sth. (to be) adj."],
+    "examTips": ["写作高频：考虑方案/问题时用consider", "consider后接动名词，不接不定式"],
+    "gaokaoExamples": [
+      {"en": "You should consider all the factors before making an important decision.", "zh": "在做重要决定之前，你应该考虑所有因素。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Many people consider exercise to be the best way to stay healthy.", "zh": "许多人认为锻炼是保持健康的最佳方式。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "consideration", "pos": "n.", "meaning": "考虑；体贴", "relation": "noun"},
+      {"word": "considerable", "pos": "adj.", "meaning": "相当大的", "relation": "adjective"},
+      {"word": "considerate", "pos": "adj.", "meaning": "体贴的，考虑周到的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "consider doing sth.", "meaning": "考虑做某事"},
+      {"phrase": "consider sb./sth. (to be) + adj.", "meaning": "认为某人/物是..."},
+      {"phrase": "take into consideration", "meaning": "考虑进去，顾及"}
+    ],
+    "confusingWords": [
+      {"word": "considerable", "meaning": "相当大的（形容词）", "difference": "considerable=相当大的；considerate=体贴周到的；注意拼写区分"},
+      {"word": "think about", "meaning": "考虑（更口语）", "difference": "think about更口语；consider更正式"}
+    ],
+    "memoryTip": "consider → 仔细观察星星（拉丁：sider=星星）→ 仔细思考 → 考虑",
+    "usageNote": "consider DOING ✓ (考虑做)；consider TO DO ✗"
+  },
+  "contribute": {
+    "pronunciation": "/kənˈtrɪbjuːt/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解"],
+    "commonMeaningsInExam": ["贡献（v.）", "促成，导致（v.）"],
+    "commonTraps": ["contribute to sth./doing（to是介词，后接名词或动名词）"],
+    "examTips": ["写作必备：contribute to the development of...", "阅读理解中常考'什么因素导致了结果'"],
+    "gaokaoExamples": [
+      {"en": "Everyone should contribute to protecting the environment.", "zh": "每个人都应该为保护环境做出贡献。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Lack of sleep can contribute to poor academic performance.", "zh": "睡眠不足会导致学习成绩下降。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "contribution", "pos": "n.", "meaning": "贡献；捐款", "relation": "noun"},
+      {"word": "contributor", "pos": "n.", "meaning": "贡献者", "relation": "noun"},
+      {"word": "contributory", "pos": "adj.", "meaning": "促成的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "contribute to sth.", "meaning": "为...做贡献；有助于；导致"},
+      {"phrase": "make a contribution to", "meaning": "对...做出贡献"},
+      {"phrase": "contribute money/time", "meaning": "捐献金钱/时间"}
+    ],
+    "confusingWords": [
+      {"word": "cause", "meaning": "导致（更直接的因果）", "difference": "contribute to表示是原因之一（间接）；cause更直接"},
+      {"word": "devote", "meaning": "献身于，专心于", "difference": "devote强调长期投入；contribute强调做出的贡献"}
+    ],
+    "memoryTip": "con（共同）+ tribute（给予，贡品）→ 共同给予 → 贡献",
+    "usageNote": "contribute TO sth./doing sth.（to是介词）"
+  },
+  "culture": {
+    "pronunciation": "/ˈkʌltʃə(r)/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["文化", "文明"],
+    "commonTraps": ["cultural（形容词）和cultured（有教养的）注意区分"],
+    "examTips": ["高考热门话题：中西文化对比、传统文化、文化交流", "cultural diversity（文化多样性）高频词组"],
+    "gaokaoExamples": [
+      {"en": "Understanding different cultures helps us become more open-minded and tolerant.", "zh": "了解不同文化有助于我们变得更加开明和宽容。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Chinese traditional culture has a long history of more than 5,000 years.", "zh": "中国传统文化有着超过5000年的悠久历史。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "cultural", "pos": "adj.", "meaning": "文化的", "relation": "adjective"},
+      {"word": "cultured", "pos": "adj.", "meaning": "有教养的；有文化修养的", "relation": "adjective"},
+      {"word": "multicultural", "pos": "adj.", "meaning": "多元文化的", "relation": "adjective"},
+      {"word": "cultivate", "pos": "v.", "meaning": "培养（同根）", "relation": "verb"}
+    ],
+    "collocationItems": [
+      {"phrase": "traditional culture", "meaning": "传统文化"},
+      {"phrase": "cultural exchange", "meaning": "文化交流"},
+      {"phrase": "cultural diversity", "meaning": "文化多样性"}
+    ],
+    "confusingWords": [
+      {"word": "civilization", "meaning": "文明（更宏观）", "difference": "civilization强调整体文明形态；culture侧重精神、风俗、艺术层面"},
+      {"word": "custom", "meaning": "风俗，习惯", "difference": "custom指具体风俗习惯；culture是更广泛的文化概念"}
+    ],
+    "memoryTip": "cult（精神崇拜）+ ure → 人类精神信仰的产物 → 文化",
+    "usageNote": "culture通常可数（a culture）也可不可数（Chinese culture）"
+  },
+  "develop": {
+    "pronunciation": "/dɪˈveləp/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["发展，开发（v.）", "形成，逐渐出现（v.）", "培养（v.）"],
+    "commonTraps": ["development（名词）注意拼写，不是*developement"],
+    "examTips": ["写作超高频：develop a habit/skill, develop the economy", "developing countries（发展中国家）高考必备"],
+    "gaokaoExamples": [
+      {"en": "China has developed rapidly in the past few decades.", "zh": "中国在过去几十年里发展迅速。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Reading regularly can help you develop critical thinking skills.", "zh": "定期阅读有助于培养批判性思维能力。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "development", "pos": "n.", "meaning": "发展；开发", "relation": "noun"},
+      {"word": "developer", "pos": "n.", "meaning": "开发者；开发商", "relation": "noun"},
+      {"word": "developing", "pos": "adj.", "meaning": "发展中的", "relation": "adjective"},
+      {"word": "developed", "pos": "adj.", "meaning": "发达的", "relation": "adjective"},
+      {"word": "underdeveloped", "pos": "adj.", "meaning": "欠发达的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "develop a habit/skill", "meaning": "养成习惯/培养技能"},
+      {"phrase": "develop the economy", "meaning": "发展经济"},
+      {"phrase": "developing countries", "meaning": "发展中国家"},
+      {"phrase": "sustainable development", "meaning": "可持续发展"}
+    ],
+    "confusingWords": [
+      {"word": "grow", "meaning": "生长；增长（更自然的过程）", "difference": "grow强调自然增长；develop强调有意识地发展"},
+      {"word": "improve", "meaning": "改善，提高", "difference": "improve强调变得更好；develop强调从无到有或规模扩大"}
+    ],
+    "memoryTip": "de + velop（→ envelope信封）→ 从信封中展开 → 发展",
+    "usageNote": "develop作不及物：The situation is developing. 作及物：develop a new product"
+  },
+  "effect": {
+    "pronunciation": "/ɪˈfekt/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["效果，影响（n.）"],
+    "commonTraps": ["affect（v.影响）vs effect（n.效果）——高考超高频易混词"],
+    "examTips": ["have an effect on = affect；写作中常互换", "side effects（副作用）高频词组"],
+    "gaokaoExamples": [
+      {"en": "Regular exercise has a positive effect on both physical and mental health.", "zh": "定期锻炼对身心健康有积极影响。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The new policy has had little effect on reducing traffic congestion.", "zh": "新政策对缓解交通拥堵几乎没有效果。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "effective", "pos": "adj.", "meaning": "有效的", "relation": "adjective"},
+      {"word": "effectively", "pos": "adv.", "meaning": "有效地", "relation": "adverb"},
+      {"word": "effectiveness", "pos": "n.", "meaning": "有效性", "relation": "noun"},
+      {"word": "ineffective", "pos": "adj.", "meaning": "无效的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "have an effect on", "meaning": "对...有影响（= affect）"},
+      {"phrase": "side effects", "meaning": "副作用"},
+      {"phrase": "take effect", "meaning": "生效，起作用"},
+      {"phrase": "in effect", "meaning": "实际上"}
+    ],
+    "confusingWords": [
+      {"word": "affect", "meaning": "v. 影响（动词）", "difference": "affect是动词；effect通常是名词，固定搭配：have an effect on"},
+      {"word": "result", "meaning": "结果；导致", "difference": "result强调最终结果；effect更强调影响/效果这一状态"}
+    ],
+    "memoryTip": "effect打头E = End result（最终结果）→ 名词；affect打头A = Action → 动词",
+    "usageNote": "effect通常是名词：an effect on；affect是动词：affect sth."
+  },
+  "effort": {
+    "pronunciation": "/ˈefət/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["努力，费力（n.）"],
+    "commonTraps": ["make efforts to do（注意复数）；spare no effort in/to do sth.（不遗余力）"],
+    "examTips": ["写作必备：make great efforts to do sth.", "常搭配：spare no effort, put effort into"],
+    "gaokaoExamples": [
+      {"en": "Success comes from making consistent efforts rather than relying on talent alone.", "zh": "成功来自持续的努力，而不仅仅依靠天赋。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Despite their best efforts, they couldn't finish the project on time.", "zh": "尽管付出了最大努力，他们仍然无法按时完成项目。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "effortless", "pos": "adj.", "meaning": "不费力的", "relation": "adjective"},
+      {"word": "effortlessly", "pos": "adv.", "meaning": "毫不费力地", "relation": "adverb"}
+    ],
+    "collocationItems": [
+      {"phrase": "make efforts to do", "meaning": "努力做某事"},
+      {"phrase": "spare no effort", "meaning": "不遗余力"},
+      {"phrase": "joint efforts", "meaning": "共同努力"},
+      {"phrase": "put effort into", "meaning": "在...上投入努力"}
+    ],
+    "confusingWords": [
+      {"word": "attempt", "meaning": "尝试，努力（n./v.）", "difference": "attempt更强调行动的尝试；effort更强调投入的力气"},
+      {"word": "try", "meaning": "尝试（动词）", "difference": "try是动词；effort是名词，常与make搭配"}
+    ],
+    "memoryTip": "ef（out努力地）+ fort（拉丁语：力量）→ 努力",
+    "usageNote": "make an effort/make efforts；spare no effort in doing / to do sth."
+  },
+  "encourage": {
+    "pronunciation": "/ɪnˈkʌrɪdʒ/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["鼓励", "促进，支持"],
+    "commonTraps": ["encourage sb. TO do sth.（不是encourage sb. doing sth.）"],
+    "examTips": ["写作高频：鼓励他人时用encourage", "encourage healthy habits（鼓励好习惯）也常见"],
+    "gaokaoExamples": [
+      {"en": "Parents should encourage their children to pursue their own interests.", "zh": "父母应该鼓励孩子追求自己的兴趣。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The teacher's words of encouragement motivated the students to work harder.", "zh": "老师的鼓励话语激励学生更加努力。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "encouragement", "pos": "n.", "meaning": "鼓励", "relation": "noun"},
+      {"word": "encouraging", "pos": "adj.", "meaning": "令人鼓舞的", "relation": "adjective"},
+      {"word": "discourage", "pos": "v.", "meaning": "使气馁，劝阻（反义）", "relation": "antonym"}
+    ],
+    "collocationItems": [
+      {"phrase": "encourage sb. to do sth.", "meaning": "鼓励某人做某事"},
+      {"phrase": "words of encouragement", "meaning": "鼓励的话语"},
+      {"phrase": "encourage creativity", "meaning": "鼓励创造力"}
+    ],
+    "confusingWords": [
+      {"word": "motivate", "meaning": "激励，激发动机", "difference": "motivate更强调激发内在动力；encourage更强调给予外在支持和信心"},
+      {"word": "inspire", "meaning": "激励；给予灵感", "difference": "inspire更强调带来灵感或深层触动；encourage更日常化"}
+    ],
+    "memoryTip": "en（使）+ courage（勇气）→ 给予勇气 → 鼓励",
+    "usageNote": "encourage sb. TO do sth.（不是encourage sb. doing sth.）"
+  },
+  "environment": {
+    "pronunciation": "/ɪnˈvaɪrənmənt/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["环境（自然或社会）"],
+    "commonTraps": ["注意拼写：environment（不是*enviroment）；environmental是形容词"],
+    "examTips": ["高考热门话题：环境保护、可持续发展", "environmental pollution（环境污染）超高频"],
+    "gaokaoExamples": [
+      {"en": "We must take action to protect the environment for future generations.", "zh": "我们必须采取行动保护环境，为子孙后代负责。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "A good learning environment can greatly improve students' performance.", "zh": "良好的学习环境可以极大地提升学生的表现。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "environmental", "pos": "adj.", "meaning": "环境的，有关环境的", "relation": "adjective"},
+      {"word": "environmentally", "pos": "adv.", "meaning": "在环境方面", "relation": "adverb"},
+      {"word": "environmentalist", "pos": "n.", "meaning": "环保人士", "relation": "noun"}
+    ],
+    "collocationItems": [
+      {"phrase": "protect the environment", "meaning": "保护环境"},
+      {"phrase": "environmental pollution", "meaning": "环境污染"},
+      {"phrase": "sustainable environment", "meaning": "可持续的环境"},
+      {"phrase": "learning environment", "meaning": "学习环境"}
+    ],
+    "confusingWords": [
+      {"word": "surroundings", "meaning": "（具体的）周围环境", "difference": "surroundings指物理周围环境；environment更广，可指自然/社会环境"},
+      {"word": "nature", "meaning": "自然界", "difference": "nature专指自然界；environment包括自然和非自然环境"}
+    ],
+    "memoryTip": "environ（包围）+ ment → 包围我们的事物 → 环境",
+    "usageNote": "the environment（特指自然环境）；a work environment（工作环境，泛指）"
+  },
+  "experience": {
+    "pronunciation": "/ɪkˈspɪəriəns/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["经历（可数n.）", "经验（不可数n.）", "经历，体验（v.）"],
+    "commonTraps": ["an experience（一次经历，可数）vs experience（经验，不可数）——高频考点"],
+    "examTips": ["写作高频：have/gain experience; a memorable experience", "可数与不可数含义不同是考点"],
+    "gaokaoExamples": [
+      {"en": "Travelling abroad gives young people valuable experience in dealing with different cultures.", "zh": "出国旅行给年轻人提供了宝贵的跨文化经验。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Volunteering is an unforgettable experience that can broaden your horizons.", "zh": "志愿服务是一段难忘的经历，能开阔你的视野。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "experienced", "pos": "adj.", "meaning": "有经验的", "relation": "adjective"},
+      {"word": "inexperienced", "pos": "adj.", "meaning": "缺乏经验的", "relation": "adjective"},
+      {"word": "experiment", "pos": "n./v.", "meaning": "实验（同根词）", "relation": "related"}
+    ],
+    "collocationItems": [
+      {"phrase": "gain / get experience", "meaning": "获得经验"},
+      {"phrase": "have an experience", "meaning": "有一次经历"},
+      {"phrase": "work experience", "meaning": "工作经验"},
+      {"phrase": "a memorable experience", "meaning": "难忘的经历"}
+    ],
+    "confusingWords": [
+      {"word": "experiment", "meaning": "实验（n./v.）", "difference": "两者同根，但experiment指科学实验；experience指生活经历/经验"},
+      {"word": "knowledge", "meaning": "知识", "difference": "knowledge是理论知识；experience是实践获得的经验"}
+    ],
+    "memoryTip": "ex（出）+ per（尝试）+ ience → 亲身尝试 → 经历、经验",
+    "usageNote": "experience（n.）：可数=经历(an experience)；不可数=经验(gain experience)"
+  },
+  "focus": {
+    "pronunciation": "/ˈfəʊkəs/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["集中，专注（v.）", "焦点，重点（n.）"],
+    "commonTraps": ["focus on（专注于），介词用on；名词用法：the focus of/on"],
+    "examTips": ["写作高频：focus on key points", "阅读理解常考文章讨论重点"],
+    "gaokaoExamples": [
+      {"en": "Students should focus on understanding concepts rather than just memorizing facts.", "zh": "学生应专注于理解概念，而不是死记硬背。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The report focuses on the effects of climate change on coastal cities.", "zh": "该报告重点关注气候变化对沿海城市的影响。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "focused", "pos": "adj.", "meaning": "专注的；聚焦的", "relation": "adjective"},
+      {"word": "unfocused", "pos": "adj.", "meaning": "不集中的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "focus on sth.", "meaning": "专注于某事"},
+      {"phrase": "the focus of attention", "meaning": "关注的焦点"},
+      {"phrase": "shift the focus to", "meaning": "将重点转移到"}
+    ],
+    "confusingWords": [
+      {"word": "concentrate", "meaning": "集中注意力（on）", "difference": "concentrate on更强调意志力集中；focus on更广，可指方向/重点"},
+      {"word": "center on", "meaning": "以...为中心", "difference": "center on强调中心；focus on更动态，也指关注重点"}
+    ],
+    "memoryTip": "光学焦点(focus) → 聚焦，集中",
+    "usageNote": "focus ON sth.（介词用on）；名词：the focus is on..."
+  },
+  "improve": {
+    "pronunciation": "/ɪmˈpruːv/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["改善，提高（v.）"],
+    "commonTraps": ["improvement是名词，注意拼写（不是*improval）"],
+    "examTips": ["写作超高频：improve one's English/skills/health", "常搭配greatly, significantly等副词"],
+    "gaokaoExamples": [
+      {"en": "Reading widely is one of the best ways to improve your vocabulary and writing skills.", "zh": "广泛阅读是提高词汇量和写作技能的最佳途径之一。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The government has taken measures to improve the quality of public education.", "zh": "政府已采取措施提高公共教育质量。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "improvement", "pos": "n.", "meaning": "改善；进步", "relation": "noun"},
+      {"word": "improved", "pos": "adj.", "meaning": "改善了的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "improve one's English/skills", "meaning": "提高英语/技能"},
+      {"phrase": "room for improvement", "meaning": "改进的空间"},
+      {"phrase": "greatly / significantly improve", "meaning": "大大改善"}
+    ],
+    "confusingWords": [
+      {"word": "develop", "meaning": "发展，培养", "difference": "develop强调从无到有的发展；improve强调在已有基础上变得更好"},
+      {"word": "enhance", "meaning": "增强，提升（更正式）", "difference": "enhance偏正式；improve更通用"}
+    ],
+    "memoryTip": "im（进入）+ prove（证实）→ 不断证实提升 → 改善",
+    "usageNote": "improve sth.（及物）/ improve（不及物）：My English is improving."
+  },
+  "increase": {
+    "pronunciation": "/ɪnˈkriːs/ (v.)  /ˈɪnkriːs/ (n.)",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["增加，增长（v./n.）"],
+    "commonTraps": ["increase by（增加了多少）vs increase to（增加到多少）"],
+    "examTips": ["图表题必备：a sharp/steady increase in...", "写作：increase in number/size"],
+    "gaokaoExamples": [
+      {"en": "The number of people using the internet has increased significantly in recent years.", "zh": "近年来使用互联网的人数大幅增加。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "There has been a steady increase in the demand for electric vehicles.", "zh": "对电动汽车的需求一直在稳步增加。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "increasingly", "pos": "adv.", "meaning": "越来越多地", "relation": "adverb"},
+      {"word": "decrease", "pos": "v./n.", "meaning": "减少（反义）", "relation": "antonym"}
+    ],
+    "collocationItems": [
+      {"phrase": "increase in sth.", "meaning": "在...方面的增加"},
+      {"phrase": "a sharp/rapid/steady increase", "meaning": "急剧/快速/稳定的增长"},
+      {"phrase": "increase by 20%", "meaning": "增加了20%"}
+    ],
+    "confusingWords": [
+      {"word": "rise", "meaning": "上升（不及物）", "difference": "rise是不及物：prices rise；increase可及物：increase prices"},
+      {"word": "grow", "meaning": "增长（更自然的过程）", "difference": "grow强调自然增长；increase强调数量/程度的上升"}
+    ],
+    "memoryTip": "in（向内）+ crease（折叠）→ 折叠层数增多 → 增加",
+    "usageNote": "increase BY（增加了多少）vs increase TO（增加到多少）"
+  },
+  "influence": {
+    "pronunciation": "/ˈɪnfluəns/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["影响（n./v.）"],
+    "commonTraps": ["have an influence ON（不是about）；under the influence OF"],
+    "examTips": ["写作：have a positive/negative influence on...", "influence作动词时直接接宾语"],
+    "gaokaoExamples": [
+      {"en": "Parents have a great influence on their children's values and behavior.", "zh": "父母对子女的价值观和行为有很大影响。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Social media has greatly influenced the way people communicate with each other.", "zh": "社交媒体极大地影响了人们相互沟通的方式。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "influential", "pos": "adj.", "meaning": "有影响力的", "relation": "adjective"},
+      {"word": "influencer", "pos": "n.", "meaning": "网红；有影响力的人", "relation": "noun"}
+    ],
+    "collocationItems": [
+      {"phrase": "have an influence on", "meaning": "对...有影响"},
+      {"phrase": "under the influence of", "meaning": "在...的影响下"},
+      {"phrase": "a positive/negative influence", "meaning": "积极/消极的影响"}
+    ],
+    "confusingWords": [
+      {"word": "affect", "meaning": "v. 影响（多指负面，直接作用）", "difference": "affect是动词，强调直接作用；influence可名可动，强调潜移默化"},
+      {"word": "effect", "meaning": "n. 效果，影响（结果）", "difference": "effect是名词，指影响的结果；influence强调影响力本身"}
+    ],
+    "memoryTip": "in（进入）+ flu（流）+ ence → 流入别人内心 → 影响",
+    "usageNote": "influence sb./sth.（动词直接接宾语）；have an influence ON sb./sth."
+  },
+  "involve": {
+    "pronunciation": "/ɪnˈvɒlv/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["涉及，包含（v.）", "使参与（v.）"],
+    "commonTraps": ["involve doing（涉及做某事）不是involve to do；be involved in（参与/卷入）"],
+    "examTips": ["写作：The project involves...（该项目涉及...）", "be involved in a community activity（参与活动）高频"],
+    "gaokaoExamples": [
+      {"en": "The study involved more than 500 students from different schools.", "zh": "这项研究涉及来自不同学校的500多名学生。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Being involved in volunteer work can improve your social skills.", "zh": "参与志愿工作可以提高你的社交技能。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "involvement", "pos": "n.", "meaning": "参与；涉及", "relation": "noun"},
+      {"word": "involved", "pos": "adj.", "meaning": "有关的；复杂的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "be involved in", "meaning": "参与；涉及"},
+      {"phrase": "involve doing sth.", "meaning": "涉及做某事"},
+      {"phrase": "deeply involved", "meaning": "深度参与"}
+    ],
+    "confusingWords": [
+      {"word": "include", "meaning": "包括（是成分之一）", "difference": "include强调是整体的一部分；involve强调必然要做或参与"},
+      {"word": "contain", "meaning": "包含，容纳", "difference": "contain更具体指容器内容；involve更抽象，指复杂关系"}
+    ],
+    "memoryTip": "in（里面）+ volve（卷）→ 卷入其中 → 涉及，参与",
+    "usageNote": "involve DOING（涉及做某事）；be involved IN（参与某事）"
+  },
+  "knowledge": {
+    "pronunciation": "/ˈnɒlɪdʒ/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["知识（不可数）"],
+    "commonTraps": ["knowledge是不可数名词，不能说*a knowledge；注意拼写（kno-wledge）"],
+    "examTips": ["写作高频：gain/acquire knowledge", "to the best of my knowledge（据我所知）写作好用"],
+    "gaokaoExamples": [
+      {"en": "Education provides us with the knowledge and skills needed for future success.", "zh": "教育为我们提供未来成功所需的知识和技能。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "To the best of my knowledge, he has never been abroad.", "zh": "据我所知，他从未出过国。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "know", "pos": "v.", "meaning": "知道", "relation": "verb"},
+      {"word": "knowledgeable", "pos": "adj.", "meaning": "知识渊博的", "relation": "adjective"},
+      {"word": "acknowledge", "pos": "v.", "meaning": "承认；致谢（同根）", "relation": "related"}
+    ],
+    "collocationItems": [
+      {"phrase": "gain/acquire knowledge", "meaning": "获取知识"},
+      {"phrase": "have knowledge of sth.", "meaning": "了解某方面知识"},
+      {"phrase": "to the best of my knowledge", "meaning": "据我所知"},
+      {"phrase": "background knowledge", "meaning": "背景知识"}
+    ],
+    "confusingWords": [
+      {"word": "information", "meaning": "信息，资讯（具体的）", "difference": "information指具体事实性信息；knowledge更广，指系统化理解"},
+      {"word": "wisdom", "meaning": "智慧（由经验提炼）", "difference": "knowledge是已知的事实原理；wisdom是运用知识的能力和判断力"}
+    ],
+    "memoryTip": "know（知道）+ ledge（梯子/边缘）→ 站在知识的台阶上 → 知识",
+    "usageNote": "knowledge是不可数名词；to one's knowledge（据某人所知）"
+  },
+  "opportunity": {
+    "pronunciation": "/ˌɒpəˈtjuːnɪti/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["机会，时机"],
+    "commonTraps": ["opportunity TO do sth.（不是of doing）；seize/take the opportunity（抓住机会）"],
+    "examTips": ["写作必备：have/seize/take the opportunity to do...", "provide sb. with an opportunity to do sth.高频句型"],
+    "gaokaoExamples": [
+      {"en": "Studying abroad gives students an opportunity to experience different cultures firsthand.", "zh": "出国留学给学生提供了第一手体验不同文化的机会。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "We should seize every opportunity to improve ourselves.", "zh": "我们应该抓住每一个机会来提升自己。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "opportune", "pos": "adj.", "meaning": "适时的，恰当的", "relation": "adjective"},
+      {"word": "opportunist", "pos": "n.", "meaning": "机会主义者", "relation": "noun"}
+    ],
+    "collocationItems": [
+      {"phrase": "have an opportunity to do", "meaning": "有机会做某事"},
+      {"phrase": "seize / take the opportunity", "meaning": "抓住机会"},
+      {"phrase": "provide sb. with an opportunity", "meaning": "给某人提供机会"},
+      {"phrase": "equal opportunities", "meaning": "平等机会"}
+    ],
+    "confusingWords": [
+      {"word": "chance", "meaning": "机会（口语，也指概率）", "difference": "chance更口语，也有'可能性'含义；opportunity更正式，强调有利时机"},
+      {"word": "possibility", "meaning": "可能性", "difference": "possibility强调可能性；opportunity强调行动的时机"}
+    ],
+    "memoryTip": "port（港口）→ 在合适时机进港 → opportunit-y（机会）",
+    "usageNote": "an opportunity TO do sth.（不定式）；an opportunity FOR sth.（名词）"
+  },
+  "perform": {
+    "pronunciation": "/pəˈfɔːm/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["表演（v.）", "执行，完成（v.）", "表现（v.）"],
+    "commonTraps": ["perform well/badly（表现好/差）；performance（名词）注意拼写（-ance结尾）"],
+    "examTips": ["perform a task/operation/experiment（执行任务/手术/实验）在阅读中常见"],
+    "gaokaoExamples": [
+      {"en": "The students performed a traditional Chinese dance at the school festival.", "zh": "学生们在学校节日上表演了一段中国传统舞蹈。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The team performed well under pressure and won the championship.", "zh": "这支队伍在压力下表现出色，赢得了冠军。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "performance", "pos": "n.", "meaning": "表演；表现；执行", "relation": "noun"},
+      {"word": "performer", "pos": "n.", "meaning": "表演者；执行者", "relation": "noun"},
+      {"word": "outperform", "pos": "v.", "meaning": "超越，优于", "relation": "verb"}
+    ],
+    "collocationItems": [
+      {"phrase": "perform a play/dance/song", "meaning": "表演戏剧/舞蹈/歌曲"},
+      {"phrase": "perform well/badly", "meaning": "表现好/差"},
+      {"phrase": "perform an operation", "meaning": "进行手术"}
+    ],
+    "confusingWords": [
+      {"word": "act", "meaning": "表演（戏剧中扮演）", "difference": "act强调扮演角色；perform更广，包括演出、执行等"},
+      {"word": "conduct", "meaning": "执行，指导（更正式）", "difference": "conduct多用于实验、研究、音乐指挥；perform更通用"}
+    ],
+    "memoryTip": "per（完全）+ form（形式）→ 完全按形式执行 → 表演，完成",
+    "usageNote": "perform sth.（执行某事）；perform well（表现好）"
+  },
+  "positive": {
+    "pronunciation": "/ˈpɒzɪtɪv/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["积极的，乐观的（adj.）", "肯定的（adj.）", "阳性的（医学）（adj.）"],
+    "commonTraps": ["positive effect ON（不是about）；be positive ABOUT sth.（确信）"],
+    "examTips": ["写作必备对比词：positive vs negative", "have a positive effect/impact on... 超高频"],
+    "gaokaoExamples": [
+      {"en": "Keeping a positive attitude is essential for overcoming difficulties in life.", "zh": "保持积极的态度对于克服生活中的困难至关重要。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Social media can have both positive and negative effects on young people.", "zh": "社交媒体对年轻人既有积极影响，也有消极影响。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "positively", "pos": "adv.", "meaning": "积极地；肯定地", "relation": "adverb"},
+      {"word": "positivity", "pos": "n.", "meaning": "积极性；乐观", "relation": "noun"},
+      {"word": "negative", "pos": "adj.", "meaning": "消极的（反义）", "relation": "antonym"}
+    ],
+    "collocationItems": [
+      {"phrase": "positive attitude", "meaning": "积极的态度"},
+      {"phrase": "positive effect/impact on", "meaning": "对...的积极影响"},
+      {"phrase": "think positive", "meaning": "积极思考"}
+    ],
+    "confusingWords": [
+      {"word": "optimistic", "meaning": "乐观的（强调心态）", "difference": "optimistic侧重心理状态的乐观；positive更广，可指积极、肯定等"},
+      {"word": "active", "meaning": "积极的；活跃的（行动上）", "difference": "active强调行动上的积极；positive更强调态度和方向"}
+    ],
+    "memoryTip": "pos（放置，拉丁语）→ 坚定地把好的事物放置好 → 积极，肯定",
+    "usageNote": "positive effect ON（不是about）；be positive ABOUT sth.（确信）"
+  },
+  "prevent": {
+    "pronunciation": "/prɪˈvent/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["阻止，预防（v.）"],
+    "commonTraps": ["prevent sb. FROM doing sth.（from不能省略）"],
+    "examTips": ["写作高频：take measures to prevent...", "常考'预防疾病/事故/污染'语境"],
+    "gaokaoExamples": [
+      {"en": "Regular hand washing is an effective way to prevent the spread of infectious diseases.", "zh": "定期洗手是预防传染病传播的有效方式。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The fence was built to prevent animals from entering the farmland.", "zh": "建造围栏是为了防止动物进入农田。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "prevention", "pos": "n.", "meaning": "预防", "relation": "noun"},
+      {"word": "preventable", "pos": "adj.", "meaning": "可预防的", "relation": "adjective"},
+      {"word": "preventive", "pos": "adj.", "meaning": "预防性的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "prevent sb. from doing sth.", "meaning": "阻止某人做某事"},
+      {"phrase": "prevent sth. from happening", "meaning": "防止某事发生"},
+      {"phrase": "prevent disease/crime/pollution", "meaning": "预防疾病/犯罪/污染"}
+    ],
+    "confusingWords": [
+      {"word": "avoid", "meaning": "避免（自己主动回避）", "difference": "avoid是主语自己主动回避；prevent是外力阻止别人或某事"},
+      {"word": "stop", "meaning": "停止；阻止", "difference": "stop sb. from doing与prevent同义但更口语；prevent更正式"}
+    ],
+    "memoryTip": "pre（提前）+ vent（来）→ 提前来阻止 → 预防",
+    "usageNote": "prevent sb./sth. FROM doing sth.（from不能省略）"
+  },
+  "provide": {
+    "pronunciation": "/prəˈvaɪd/",
+    "frequencyLevel": "高频",
+    "examScenes": ["写作", "阅读理解", "完形填空"],
+    "commonMeaningsInExam": ["提供（v.）"],
+    "commonTraps": ["provide sb. WITH sth. 或 provide sth. FOR sb.（两种结构都正确）"],
+    "examTips": ["写作超高频：provide opportunities/information/support"],
+    "gaokaoExamples": [
+      {"en": "The library provides students with access to thousands of books and online resources.", "zh": "图书馆为学生提供获取数千本书籍和在线资源的途径。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "The program is designed to provide free meals for children from low-income families.", "zh": "该项目旨在为低收入家庭的儿童提供免费餐食。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "provider", "pos": "n.", "meaning": "提供者；供应商", "relation": "noun"},
+      {"word": "provision", "pos": "n.", "meaning": "提供；规定；准备", "relation": "noun"}
+    ],
+    "collocationItems": [
+      {"phrase": "provide sb. with sth.", "meaning": "向某人提供某物"},
+      {"phrase": "provide sth. for sb.", "meaning": "为某人提供某物"},
+      {"phrase": "provide support/opportunities", "meaning": "提供支持/机会"}
+    ],
+    "confusingWords": [
+      {"word": "offer", "meaning": "提供（主动给予，可被拒绝）", "difference": "offer更强调主动提出，可以被接受或拒绝；provide更强调供应"},
+      {"word": "supply", "meaning": "供应（大量、持续的）", "difference": "supply强调大量持续供应；provide更通用"}
+    ],
+    "memoryTip": "pro（前）+ vide（看，拉丁语）→ 提前看到需要 → 提供",
+    "usageNote": "provide sb. WITH sth.（with不可省）；provide sth. FOR sb."
+  },
+  "suggest": {
+    "pronunciation": "/səˈdʒest/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["建议（v.）", "表明，暗示（v.）"],
+    "commonTraps": ["suggest doing（建议做）不是suggest to do；suggest that sb. (should) do sth.（虚拟语气）"],
+    "examTips": ["高考超高频：suggest that...（建议/暗示...）", "注意suggest表'暗示'时和'建议'含义不同"],
+    "gaokaoExamples": [
+      {"en": "The research suggests that regular exercise can reduce the risk of heart disease.", "zh": "研究表明，定期锻炼可以降低患心脏病的风险。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "I suggest that we (should) start the meeting earlier than planned.", "zh": "我建议我们比原计划提前开会。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "suggestion", "pos": "n.", "meaning": "建议；暗示", "relation": "noun"},
+      {"word": "suggestive", "pos": "adj.", "meaning": "暗示性的；意味深长的", "relation": "adjective"}
+    ],
+    "collocationItems": [
+      {"phrase": "suggest doing sth.", "meaning": "建议做某事"},
+      {"phrase": "suggest that sb. (should) do", "meaning": "建议某人做（虚拟语气）"},
+      {"phrase": "suggest + 从句（陈述语气）", "meaning": "表明，暗示"}
+    ],
+    "confusingWords": [
+      {"word": "recommend", "meaning": "推荐，建议（更正式）", "difference": "recommend更正式，且后接名词/动名词/that从句；suggest更广泛"},
+      {"word": "advise", "meaning": "劝告，建议", "difference": "advise sb. to do sth.（动词不定式）；suggest不能接不定式"}
+    ],
+    "memoryTip": "sug（sub=下面）+ gest（携带）→ 从下面带出想法 → 建议，暗示",
+    "usageNote": "suggest DOING ✓；suggest TO DO ✗；suggest that + (should) + 动词原形"
+  },
+  "value": {
+    "pronunciation": "/ˈvæljuː/",
+    "frequencyLevel": "高频",
+    "examScenes": ["阅读理解", "写作", "完形填空"],
+    "commonMeaningsInExam": ["价值（n.）", "重视，珍视（v.）", "价值观（n. 常用复数values）"],
+    "commonTraps": ["values（复数）= 价值观；value（单数/不可数）= 价值"],
+    "examTips": ["写作高频：the value of...; traditional values（传统价值观）", "高考文化类阅读常见"],
+    "gaokaoExamples": [
+      {"en": "Education helps young people develop the right values and attitudes towards life.", "zh": "教育帮助年轻人形成正确的人生价值观和态度。", "source": "高考风格例句", "isRealExam": false},
+      {"en": "Travelling can broaden your horizons and help you appreciate the value of different cultures.", "zh": "旅行可以开阔你的视野，帮助你欣赏不同文化的价值。", "source": "高考风格例句", "isRealExam": false}
+    ],
+    "wordFamily": [
+      {"word": "valuable", "pos": "adj.", "meaning": "有价值的，宝贵的", "relation": "adjective"},
+      {"word": "invaluable", "pos": "adj.", "meaning": "无价的，极其宝贵的", "relation": "adjective"},
+      {"word": "valuation", "pos": "n.", "meaning": "估价，评估", "relation": "noun"}
+    ],
+    "collocationItems": [
+      {"phrase": "the value of sth.", "meaning": "某事物的价值"},
+      {"phrase": "place / put value on", "meaning": "重视..."},
+      {"phrase": "traditional values", "meaning": "传统价值观"},
+      {"phrase": "face value", "meaning": "表面价值"}
+    ],
+    "confusingWords": [
+      {"word": "worth", "meaning": "价值；值得", "difference": "worth作名词/形容词：be worth doing；value更多用作名词或动词"},
+      {"word": "price", "meaning": "价格（金钱衡量）", "difference": "price是金钱价格；value更广，指内在/精神价值"}
+    ],
+    "memoryTip": "val（来自拉丁语valere=强壮/有价值）→ value（价值）",
+    "usageNote": "value sth.（动词：重视）；value（名词：价值）；values（复数：价值观）"
+  }
+}

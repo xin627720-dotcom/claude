@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getWordById } from '@/lib/vocab'
 import { getWordProgress, saveWordProgress } from '@/lib/localStore'
+import WordDetail from '@/components/WordDetail'
 import type { VocabWord, WordProgress } from '@/lib/types'
 
 function speak(text: string) {
@@ -134,87 +135,10 @@ export default function WordDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {/* Collocations */}
-      {word.collocations.length > 0 && (
-        <div className="bg-white rounded-xl shadow-card p-5 mb-4">
-          <h2 className="text-sm font-semibold text-text-secondary mb-3">常用搭配</h2>
-          <div className="flex flex-wrap gap-2">
-            {word.collocations.map((c, i) => (
-              <span key={i} className="px-3 py-1 bg-bg-primary rounded-full text-sm text-text-primary">{c}</span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Examples */}
-      {word.examples.length > 0 && (
-        <div className="bg-white rounded-xl shadow-card p-5 mb-4">
-          <h2 className="text-sm font-semibold text-text-secondary mb-3">例句</h2>
-          <div className="space-y-4">
-            {word.examples.map((ex, i) => (
-              <div key={i} className="border-l-2 border-accent/30 pl-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm text-text-primary italic flex-1">{ex.en}</p>
-                  <button onClick={() => speak(ex.en)} className="flex-shrink-0 text-text-tertiary active:text-accent mt-0.5">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M12 6v12" />
-                    </svg>
-                  </button>
-                </div>
-                <p className="text-xs text-text-secondary mt-1">{ex.zh}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Synonyms / Antonyms */}
-      {(word.synonyms.length > 0 || word.antonyms.length > 0) && (
-        <div className="bg-white rounded-xl shadow-card p-5 mb-4">
-          {word.synonyms.length > 0 && (
-            <div className="mb-3">
-              <h2 className="text-sm font-semibold text-text-secondary mb-2">近义词</h2>
-              <div className="flex flex-wrap gap-2">
-                {word.synonyms.map((s, i) => (
-                  <span key={i} className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm">{s}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {word.antonyms.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold text-text-secondary mb-2">反义词</h2>
-              <div className="flex flex-wrap gap-2">
-                {word.antonyms.map((a, i) => (
-                  <span key={i} className="px-3 py-1 bg-red-50 text-danger rounded-full text-sm">{a}</span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Root + exam tips */}
-      {(word.root || word.examTips.length > 0) && (
-        <div className="bg-white rounded-xl shadow-card p-5 mb-4">
-          {word.root && (
-            <div className="mb-3">
-              <h2 className="text-sm font-semibold text-text-secondary mb-1">词根词缀</h2>
-              <p className="text-sm text-text-primary">{word.root}</p>
-            </div>
-          )}
-          {word.examTips.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold text-warning mb-1">考试提示</h2>
-              <ul className="space-y-1">
-                {word.examTips.map((tip, i) => (
-                  <li key={i} className="text-sm text-text-primary">• {tip}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Detailed sections */}
+      <div className="bg-white rounded-xl shadow-card p-5 mb-4">
+        <WordDetail word={word} />
+      </div>
 
       {/* Progress */}
       {progress && progress.status !== 'unseen' && (

@@ -4,7 +4,14 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { allWords, basicWords, coreWords } from '@/lib/vocab'
 import { loadStore } from '@/lib/localStore'
-import type { VocabWord, WordProgress, WordStatus } from '@/lib/types'
+import type { VocabWord, WordProgress, WordStatus, FrequencyLevel } from '@/lib/types'
+
+const freqBadge: Record<FrequencyLevel, string> = {
+  '高频': 'bg-red-100 text-red-600',
+  '中频': 'bg-orange-100 text-orange-600',
+  '低频': 'bg-blue-100 text-blue-600',
+  '超纲拓展': 'bg-purple-100 text-purple-600',
+}
 
 const statusLabel: Record<WordStatus, { text: string; color: string }> = {
   unseen: { text: '未学', color: 'bg-bg-tertiary text-text-tertiary' },
@@ -94,9 +101,14 @@ export default function VocabularyPage() {
                 className="bg-white rounded-xl px-4 py-3 flex items-center justify-between shadow-sm active:scale-[0.99] transition-all"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-text-primary">{word.word}</span>
                     <span className="text-xs text-text-tertiary">{word.pos}</span>
+                    {word.frequencyLevel && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${freqBadge[word.frequencyLevel]}`}>
+                        {word.frequencyLevel}
+                      </span>
+                    )}
                     {p?.isFavorite && <span className="text-yellow-400 text-xs">★</span>}
                   </div>
                   <p className="text-sm text-text-secondary truncate">{word.meaning}</p>
