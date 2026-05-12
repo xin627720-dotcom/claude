@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import type { VocabWord } from '@/lib/types'
+import { speakText, canSpeak } from '@/lib/speech'
 
 interface WordCardProps {
   word: VocabWord
@@ -9,15 +10,8 @@ interface WordCardProps {
   isFavorite?: boolean
   onToggleFavorite?: () => void
   showProgress?: string
-}
-
-function speak(text: string) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return
-  window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = 'en-US'
-  utterance.rate = 0.9
-  window.speechSynthesis.speak(utterance)
+  /** Called on any user interaction (used by parent to unlock autoplay) */
+  onInteract?: () => void
 }
 
 export default function WordCard({
@@ -26,17 +20,20 @@ export default function WordCard({
   isFavorite = false,
   onToggleFavorite,
   showProgress,
+  onInteract,
 }: WordCardProps) {
   const [revealed, setRevealed] = useState(false)
   const [chosen, setChosen] = useState<'correct' | 'fuzzy' | 'wrong' | null>(null)
 
   const handleReveal = () => {
-    if (!revealed) speak(word.word)
+    onInteract?.()
+    if (!revealed) speakText(word.word)
     setRevealed(true)
   }
 
   const handleResult = useCallback(
     (result: 'correct' | 'fuzzy' | 'wrong') => {
+      onInteract?.()
       setChosen(result)
       setTimeout(() => {
         setRevealed(false)
@@ -44,7 +41,7 @@ export default function WordCard({
         onResult(result)
       }, 320)
     },
-    [onResult]
+    [onResult, onInteract]
   )
 
   const feedbackBg =
@@ -66,9 +63,10 @@ export default function WordCard({
         <div className="ml-auto flex items-center gap-3">
           {/* Speak button */}
           <button
-            onClick={() => speak(word.word)}
+            onClick={() => { onInteract?.(); speakText(word.word) }}
             className="p-1.5 rounded-full text-text-tertiary active:text-accent active:scale-95 transition-all"
             aria-label="朗读"
+            title={canSpeak() ? '朗读' : '当前浏览器不支持朗读'}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v11.494m0 0l-2.53-2.53M12 17.747l2.53-2.53M6.343 9.343a8 8 0 000 5.314m10-5.314a8 8 0 010 5.314" />

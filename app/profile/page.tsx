@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isSupabaseConfigured } from '@/lib/supabaseClient'
 import { getUserStats, saveUserStats, clearStore, loadStore } from '@/lib/localStore'
 import { allWords } from '@/lib/vocab'
+import { getAutoSpeakEnabled, setAutoSpeakEnabled } from '@/lib/speech'
 import type { UserStats } from '@/lib/types'
 
 export default function ProfilePage() {
@@ -16,13 +17,21 @@ export default function ProfilePage() {
   const [goalInput, setGoalInput] = useState('')
   const [clearConfirm, setClearConfirm] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
+  const [autoSpeakOn, setAutoSpeakOn] = useState(true)
 
   useEffect(() => {
     const s = getUserStats()
     setStats(s)
     setGoalInput(String(s.dailyGoal))
     setLastSync(loadStore().lastSyncedAt)
+    setAutoSpeakOn(getAutoSpeakEnabled())
   }, [syncStatus])
+
+  const handleAutoSpeakToggle = () => {
+    const next = !autoSpeakOn
+    setAutoSpeakEnabled(next)
+    setAutoSpeakOn(next)
+  }
 
   const handleLogin = async () => {
     setLoginError('')
@@ -163,6 +172,30 @@ export default function ProfilePage() {
             <p className="text-xs text-text-tertiary">积分</p>
             <p className="text-xl font-bold text-accent">{stats?.points ?? 0}</p>
           </div>
+        </div>
+      </div>
+
+      {/* Learning settings */}
+      <div className="bg-white rounded-xl shadow-card p-5 mb-4">
+        <h2 className="text-sm font-semibold text-text-secondary mb-3">学习设置</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-text-primary font-medium">学习时自动发音</p>
+            <p className="text-xs text-text-tertiary mt-0.5">每换一个单词自动朗读英文</p>
+          </div>
+          <button
+            onClick={handleAutoSpeakToggle}
+            className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
+              autoSpeakOn ? 'bg-accent' : 'bg-gray-200'
+            }`}
+            aria-label={autoSpeakOn ? '关闭自动发音' : '开启自动发音'}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
+                autoSpeakOn ? 'left-[22px]' : 'left-0.5'
+              }`}
+            />
+          </button>
         </div>
       </div>
 
