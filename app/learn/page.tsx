@@ -84,10 +84,35 @@ export default function LearnPage() {
       setSpeechDebug(d => ({ ...d, voiceCount: 0, voiceName: '不支持' }))
     }
 
-    const progressMap = Object.fromEntries(
-      allWords.map((w) => [w.id, getWordProgress(w.id)])
-    )
-    const q = buildReviewQueue(allWords.map((w) => w.id), progressMap).slice(0, 30)
+    // Support Mimo daily plan modes via URL param ?mode=mimo-*
+    const urlMode = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('mode') ?? ''
+      : ''
+
+    let q: string[] = []
+    if (urlMode.startsWith('mimo-')) {
+      try {
+        const raw = localStorage.getItem('mimoDailyPlan_v1')
+        if (raw) {
+          const plan = JSON.parse(raw)
+          const today = new Date().toISOString().slice(0, 10)
+          if (plan.date === today) {
+            if (urlMode === 'mimo-new') q = plan.newWordIds ?? []
+            else if (urlMode === 'mimo-review') q = plan.reviewWordIds ?? []
+            else if (urlMode === 'mimo-wrong') q = plan.wrongWordIds ?? []
+            else if (urlMode === 'mimo-fuzzy') q = plan.fuzzyWordIds ?? []
+          }
+        }
+      } catch {}
+    }
+
+    if (q.length === 0 && !urlMode.startsWith('mimo-')) {
+      const progressMap = Object.fromEntries(
+        allWords.map((w) => [w.id, getWordProgress(w.id)])
+      )
+      q = buildReviewQueue(allWords.map((w) => w.id), progressMap).slice(0, 30)
+    }
+
     setQueue(q)
     setIndex(0)
     nextIndexRef.current = 0

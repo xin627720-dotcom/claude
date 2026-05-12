@@ -52,6 +52,46 @@ export default function QuizPage() {
   }, [])
 
   useEffect(() => {
+    // Support Mimo daily plan modes via URL param ?mode=mimo-*
+    const urlMode = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('mode') ?? ''
+      : ''
+
+    let mimoIds: string[] = []
+    if (urlMode.startsWith('mimo-')) {
+      try {
+        const raw = localStorage.getItem('mimoDailyPlan_v1')
+        if (raw) {
+          const plan = JSON.parse(raw)
+          const today = new Date().toISOString().slice(0, 10)
+          if (plan.date === today) {
+            if (urlMode === 'mimo-sentence') {
+              // sentence: sentenceMeaningWordIds + confusingWordIds + wrongWordIds
+              const ids: string[] = [
+                ...(plan.sentenceMeaningWordIds ?? []),
+                ...(plan.confusingWordIds ?? []),
+                ...(plan.wrongWordIds ?? []),
+              ]
+              const seen = new Set<string>()
+              mimoIds = ids.filter(id => { if (seen.has(id)) return false; seen.add(id); return true })
+            } else if (urlMode === 'mimo-wrong') mimoIds = plan.wrongWordIds ?? []
+            else if (urlMode === 'mimo-fuzzy') mimoIds = plan.fuzzyWordIds ?? []
+          }
+        }
+      } catch {}
+    }
+
+    if (mimoIds.length > 0) {
+      const q = mimoIds.slice(0, 20)
+      setQueue(q)
+      setIndex(0)
+      saveQuizProgress({ currentQuizQueue: q, currentQuizIndex: 0, answeredWordIds: [], wrongWordIds: [], updatedAt: new Date().toISOString() })
+      if (q.length > 0) setupQuestion(q, 0)
+      else setDone(true)
+      setReady(true)
+      return
+    }
+
     const saved = getQuizProgress()
     const progressMap = Object.fromEntries(
       allWords.map((w) => [w.id, getWordProgress(w.id)])

@@ -6,7 +6,19 @@ import { isSupabaseConfigured } from '@/lib/supabaseClient'
 import { getUserStats, saveUserStats, clearStore, loadStore } from '@/lib/localStore'
 import { allWords } from '@/lib/vocab'
 import { getAutoSpeakEnabled, setAutoSpeakEnabled } from '@/lib/speech'
-import type { UserStats } from '@/lib/types'
+import {
+  getMimoPlanSettings,
+  saveMimoPlanSettings,
+  getDefaultSettings,
+  calculateDaysRemaining,
+  calculateDailyNewWordTarget,
+  getTargetDateFromMode,
+  clearTodayMimoPlan,
+  todayStr,
+  addDays,
+  INTENSITY_LIMITS,
+} from '@/lib/mimoPlan'
+import type { UserStats, MimoPlanSettings, MimoTargetMode, MimoIntensity } from '@/lib/types'
 
 export default function ProfilePage() {
   const { user, syncStatus, triggerSync, signInWithEmail, signOut } = useAuth()
@@ -18,6 +30,9 @@ export default function ProfilePage() {
   const [clearConfirm, setClearConfirm] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [autoSpeakOn, setAutoSpeakOn] = useState(true)
+  const [mimoSettings, setMimoSettings] = useState<MimoPlanSettings>(getDefaultSettings)
+  const [customDateInput, setCustomDateInput] = useState('')
+  const [mimoSaved, setMimoSaved] = useState(false)
 
   useEffect(() => {
     const s = getUserStats()
@@ -25,6 +40,9 @@ export default function ProfilePage() {
     setGoalInput(String(s.dailyGoal))
     setLastSync(loadStore().lastSyncedAt)
     setAutoSpeakOn(getAutoSpeakEnabled())
+    const ms = getMimoPlanSettings()
+    setMimoSettings(ms)
+    setCustomDateInput(ms.targetDate ?? '')
   }, [syncStatus])
 
   const handleAutoSpeakToggle = () => {
@@ -56,6 +74,32 @@ export default function ProfilePage() {
     clearStore()
     setStats(getUserStats())
     setClearConfirm(false)
+  }
+
+  const handleMimoChange = (patch: Partial<MimoPlanSettings>) => {
+    setMimoSettings(prev => ({ ...prev, ...patch }))
+    setMimoSaved(false)
+  }
+
+  const handleMimoTargetMode = (mode: MimoTargetMode) => {
+    const targetDate = mode === 'custom' ? customDateInput || null : getTargetDateFromMode(mode)
+    handleMimoChange({ targetMode: mode, targetDate })
+  }
+
+  const handleSaveMimo = () => {
+    const updated: MimoPlanSettings = {
+      ...mimoSettings,
+      targetDate:
+        mimoSettings.targetMode === 'custom'
+          ? customDateInput || null
+          : getTargetDateFromMode(mimoSettings.targetMode),
+      updatedAt: new Date().toISOString(),
+    }
+    saveMimoPlanSettings(updated)
+    clearTodayMimoPlan()  // force regeneration with new settings
+    setMimoSettings(updated)
+    setMimoSaved(true)
+    setTimeout(() => setMimoSaved(false), 2000)
   }
 
   const progressCount = Object.values(loadStore().wordProgress).length
@@ -219,6 +263,116 @@ export default function ProfilePage() {
             保存
           </button>
         </div>
+      </div>
+
+      {/* Mimo AI Plan Settings */}
+      <div className="bg-white rounded-xl shadow-card p-5 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-text-secondary">Mimo AI 学习目标</h2>
+          <button
+            onClick={() => handleMimoChange({ enabled: !mimoSettings.enabled })}
+            className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${mimoSettings.enabled ? 'bg-accent' : 'bg-gray-200'}`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${mimoSettings.enabled ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+
+        {mimoSettings.enabled && (
+          <>
+            {/* Target mode */}
+            <p className="text-xs text-text-tertiary mb-2">计划完成时间</p>
+            <div className="grid grid-cols-4 gap-1.5 mb-3">
+              {(['30_days', '60_days', '90_days', '120_days'] as MimoTargetMode[]).map(m => (
+                <button
+                  key={m}
+                  onClick={() => handleMimoTargetMode(m)}
+                  className={`py-2 rounded-lg text-xs font-medium transition-all active:scale-95 ${mimoSettings.targetMode === m ? 'bg-accent text-white' : 'bg-bg-primary text-text-secondary'}`}
+                >
+                  {m.replace('_days', '天')}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => handleMimoTargetMode('custom')}
+              className={`w-full py-2 rounded-lg text-xs font-medium mb-2 transition-all active:scale-95 ${mimoSettings.targetMode === 'custom' ? 'bg-accent text-white' : 'bg-bg-primary text-text-secondary'}`}
+            >
+              自定义日期
+            </button>
+            {mimoSettings.targetMode === 'custom' && (
+              <input
+                type="date"
+                value={customDateInput}
+                min={addDays(todayStr(), 1)}
+                onChange={e => { setCustomDateInput(e.target.value); setMimoSaved(false) }}
+                className="w-full rounded-lg px-3 py-2 text-sm bg-bg-primary border border-bg-tertiary outline-none focus:border-accent mb-3 text-text-primary"
+              />
+            )}
+
+            {/* Daily intensity */}
+            <p className="text-xs text-text-tertiary mb-2">每日学习强度</p>
+            <div className="grid grid-cols-3 gap-1.5 mb-3">
+              {([
+                { v: 'easy' as MimoIntensity, label: '轻松', sub: '约10-15分钟' },
+                { v: 'normal' as MimoIntensity, label: '标准', sub: '约20-30分钟' },
+                { v: 'sprint' as MimoIntensity, label: '冲刺', sub: '约40-60分钟' },
+              ]).map(({ v, label, sub }) => (
+                <button
+                  key={v}
+                  onClick={() => handleMimoChange({ dailyIntensity: v })}
+                  className={`py-2 px-1 rounded-lg text-center transition-all active:scale-95 ${mimoSettings.dailyIntensity === v ? 'bg-accent text-white' : 'bg-bg-primary text-text-secondary'}`}
+                >
+                  <p className="text-xs font-medium">{label}</p>
+                  <p className={`text-[10px] mt-0.5 ${mimoSettings.dailyIntensity === v ? 'text-white/70' : 'text-text-tertiary'}`}>{sub}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* Toggle options */}
+            {([
+              { key: 'preferHighFrequency', label: '高频词优先', sub: '优先安排高频考点词' },
+              { key: 'preferWrongWords', label: '错词优先', sub: '优先复习错词和模糊词' },
+              { key: 'autoGenerateDailyPlan', label: '每天自动生成计划', sub: '每天首次打开时自动生成' },
+            ] as { key: keyof MimoPlanSettings; label: string; sub: string }[]).map(({ key, label, sub }) => (
+              <div key={key as string} className="flex items-center justify-between py-2.5 border-t border-bg-tertiary">
+                <div>
+                  <p className="text-sm text-text-primary">{label}</p>
+                  <p className="text-xs text-text-tertiary">{sub}</p>
+                </div>
+                <button
+                  onClick={() => handleMimoChange({ [key]: !(mimoSettings[key] as boolean) })}
+                  className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${mimoSettings[key] ? 'bg-accent' : 'bg-gray-200'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${mimoSettings[key] ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+            ))}
+
+            {/* Summary */}
+            {mimoSettings.targetDate && (
+              <div className="mt-3 bg-accent/5 rounded-lg px-3 py-2 text-xs text-text-secondary">
+                {(() => {
+                  const days = calculateDaysRemaining(mimoSettings.targetDate)
+                  const mastered = Object.values(loadStore().wordProgress).filter(p => p.status === 'mastered').length
+                  const remaining = allWords.length - mastered
+                  const { target, warning } = calculateDailyNewWordTarget(remaining, days, mimoSettings.dailyIntensity)
+                  return (
+                    <>
+                      <p>距目标 <strong>{days}</strong> 天 · 每天建议新学 <strong>{target}</strong> 个词</p>
+                      {warning && <p className="text-warning mt-1">{warning}</p>}
+                    </>
+                  )
+                })()}
+              </div>
+            )}
+
+            <button
+              onClick={handleSaveMimo}
+              className={`w-full mt-3 py-2.5 rounded-xl text-sm font-semibold active:scale-[0.97] transition-all ${mimoSaved ? 'bg-success text-white' : 'bg-accent text-white'}`}
+            >
+              {mimoSaved ? '已保存 ✓' : '保存计划设置'}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Danger zone */}

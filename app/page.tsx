@@ -8,6 +8,7 @@ import { isDueForReview } from '@/lib/review'
 import { useAuth } from '@/contexts/AuthContext'
 import SyncStatus from '@/components/SyncStatus'
 import StatCard from '@/components/StatCard'
+import MimoPlanCard from '@/components/MimoPlanCard'
 import type { UserStats } from '@/lib/types'
 
 export default function HomePage() {
@@ -95,6 +96,9 @@ export default function HomePage() {
         <StatCard label="错词本" value={wrongCount} color="danger" />
         <StatCard label="已收藏" value={favoriteCount} color="accent" />
       </div>
+
+      {/* Mimo AI Plan */}
+      <MimoPlanCard />
 
       {/* Actions */}
       <h2 className="text-sm font-semibold text-text-secondary mb-3 px-1">快速开始</h2>
