@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getWordById } from '@/lib/vocab'
 import { getWordProgress, saveWordProgress } from '@/lib/localStore'
+import { hasEnhancedData, getEnrichCache, setEnrichCache } from '@/lib/wordDetail'
 import WordDetail from '@/components/WordDetail'
 import type { VocabWord, WordProgress } from '@/lib/types'
 
@@ -24,18 +25,45 @@ export default function WordDetailPage({ params }: { params: Promise<{ id: strin
   const { id } = use(params)
   const router = useRouter()
   const [word, setWord] = useState<VocabWord | null>(null)
+  const [enrichedData, setEnrichedData] = useState<Partial<VocabWord> | null>(null)
+  const [enriching, setEnriching] = useState(false)
   const [progress, setProgress] = useState<WordProgress | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    let w: VocabWord | undefined
     try {
-      const w = getWordById(id)
+      w = getWordById(id)
       setWord(w ?? null)
       if (w) setProgress(getWordProgress(id))
     } catch {
       setWord(null)
     } finally {
       setLoaded(true)
+    }
+
+    // Trigger AI enrichment if no enhanced data
+    if (w && !hasEnhancedData(w)) {
+      const cached = getEnrichCache(w.word)
+      if (cached) {
+        setEnrichedData(cached)
+      } else {
+        setEnriching(true)
+        fetch('/api/word/enrich', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word: w.word, meaning: w.meaning, pos: w.pos, level: w.level }),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) {
+              setEnrichCache(w!.word, data)
+              setEnrichedData(data)
+            }
+          })
+          .catch(() => {})
+          .finally(() => setEnriching(false))
+      }
     }
   }, [id])
 
@@ -77,6 +105,8 @@ export default function WordDetailPage({ params }: { params: Promise<{ id: strin
       </div>
     )
   }
+
+  const displayWord = enrichedData ? { ...word, ...enrichedData } : word
 
   const statusColors: Record<string, string> = {
     unseen: 'bg-bg-tertiary text-text-tertiary',
@@ -136,8 +166,8 @@ export default function WordDetailPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Detailed sections */}
-      <div className="bg-white rounded-xl shadow-card p-5 mb-4">
-        <WordDetail word={word} />
+      <div className="bg-white rounded-xl shadow-card p-4 mb-4">
+        <WordDetail word={displayWord} enriching={enriching} />
       </div>
 
       {/* Progress */}

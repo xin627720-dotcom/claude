@@ -8,6 +8,7 @@ import {
   getWordProgress,
   removeWrongWord,
 } from '@/lib/localStore'
+import { hasEnhancedData, getEnrichCache, setEnrichCache } from '@/lib/wordDetail'
 import WordDetail from '@/components/WordDetail'
 import type { WrongWord, VocabWord } from '@/lib/types'
 
@@ -25,6 +26,8 @@ function formatDate(iso: string | null | undefined) {
 export default function WrongWordsPage() {
   const [list, setList] = useState<WrongWord[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [enrichedData, setEnrichedData] = useState<Record<string, Partial<VocabWord>>>({})
+  const [enrichingId, setEnrichingId] = useState<string | null>(null)
 
   const reload = useCallback(() => {
     const arr = getWrongWordsList()
@@ -32,6 +35,43 @@ export default function WrongWordsPage() {
   }, [])
 
   useEffect(() => { reload() }, [reload])
+
+  const triggerEnrich = useCallback(async (wordId: string, word: VocabWord) => {
+    if (hasEnhancedData(word)) return
+
+    // Check localStorage cache first
+    const cached = getEnrichCache(word.word)
+    if (cached) {
+      setEnrichedData(prev => ({ ...prev, [wordId]: cached }))
+      return
+    }
+
+    setEnrichingId(wordId)
+    try {
+      const resp = await fetch('/api/word/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: word.word, meaning: word.meaning, pos: word.pos, level: word.level }),
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        setEnrichCache(word.word, data)
+        setEnrichedData(prev => ({ ...prev, [wordId]: data }))
+      }
+    } catch {
+      // fail silently — WordDetail shows fallback placeholders
+    } finally {
+      setEnrichingId(null)
+    }
+  }, [])
+
+  const handleExpand = useCallback((wordId: string, word: VocabWord) => {
+    const alreadyExpanded = expandedId === wordId
+    setExpandedId(alreadyExpanded ? null : wordId)
+    if (!alreadyExpanded) {
+      triggerEnrich(wordId, word)
+    }
+  }, [expandedId, triggerEnrich])
 
   const handleMastered = (wordId: string) => {
     const p = getWordProgress(wordId)
@@ -60,7 +100,7 @@ export default function WrongWordsPage() {
     reload()
   }
 
-  // Count only entries with a valid vocab word — keeps parity with home page
+  // Count only entries with a valid vocab word
   const validCount = list.filter(ww => ww?.wordId && !!getWordById(ww.wordId)).length
 
   return (
@@ -80,6 +120,9 @@ export default function WrongWordsPage() {
             if (!ww?.wordId) return null
             const word: VocabWord | undefined = getWordById(ww.wordId)
             const isExpanded = expandedId === ww.wordId
+            const isEnriching = enrichingId === ww.wordId
+            const enriched = enrichedData[ww.wordId]
+            const displayWord = word && enriched ? { ...word, ...enriched } : word
 
             return (
               <div key={ww.wordId} className="bg-white rounded-xl shadow-card p-4">
@@ -105,9 +148,9 @@ export default function WrongWordsPage() {
                 </div>
 
                 {/* Inline detail */}
-                {word && isExpanded && (
+                {displayWord && isExpanded && (
                   <div className="mt-3 pt-3 border-t border-bg-tertiary">
-                    <WordDetail word={word} compact />
+                    <WordDetail word={displayWord} compact enriching={isEnriching} />
                   </div>
                 )}
 
@@ -127,7 +170,7 @@ export default function WrongWordsPage() {
                   </button>
                   {word && (
                     <button
-                      onClick={() => setExpandedId(isExpanded ? null : ww.wordId)}
+                      onClick={() => handleExpand(ww.wordId, word)}
                       className="flex-1 py-2 rounded-lg bg-accent/10 text-accent text-xs font-medium active:scale-95 transition-all"
                     >
                       {isExpanded ? '收起' : '查看'}
