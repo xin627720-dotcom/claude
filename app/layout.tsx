@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import BottomNav from '@/components/BottomNav'
+import { Analytics } from '@vercel/analytics/next'
 
 export const metadata: Metadata = {
   title: '高考英语词汇学习',
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             `,
           }}
         />
+        <Analytics />
       </body>
     </html>
   )
