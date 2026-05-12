@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { allWords, getWordById } from '@/lib/vocab'
 import {
@@ -13,7 +13,33 @@ import {
 } from '@/lib/localStore'
 import { trySyncInBackground } from '@/lib/sync'
 import { buildReviewQueue, getNextReviewDate } from '@/lib/review'
+import { canUseSpeech, speakWordDirect } from '@/lib/speech'
+import { markTaskComplete, type MimoTask } from '@/lib/mimoTaskRunner'
 import type { VocabWord } from '@/lib/types'
+
+function getWordExample(word: VocabWord): { en: string; zh: string } | null {
+  if (word.gaokaoExamples?.length) {
+    return { en: word.gaokaoExamples[0].en, zh: word.gaokaoExamples[0].zh }
+  }
+  if (word.examples?.length) {
+    return word.examples[0]
+  }
+  return null
+}
+
+function SentenceHighlight({ sentence, word }: { sentence: string; word: string }) {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = sentence.split(new RegExp(`(${escaped})`, 'i'))
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === word.toLowerCase()
+          ? <strong key={i} className="text-accent">{part}</strong>
+          : <span key={i}>{part}</span>
+      )}
+    </>
+  )
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -30,6 +56,11 @@ function buildOptions(correct: VocabWord, all: VocabWord[]): VocabWord[] {
   return shuffle([correct, ...picks])
 }
 
+const QUIZ_MODE_TO_TASK: Record<string, MimoTask> = {
+  'mimo-sentence': 'sentence',
+  'mimo-confusing': 'confusing',
+}
+
 export default function QuizPage() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
@@ -41,6 +72,8 @@ export default function QuizPage() {
   const [score, setScore] = useState(0)
   const [done, setDone] = useState(false)
   const [wrongCount, setWrongCount] = useState(0)
+  const [currentExample, setCurrentExample] = useState<{ en: string; zh: string } | null>(null)
+  const urlModeRef = useRef<string>('')
 
   const setupQuestion = useCallback((q: string[], i: number) => {
     const wordId = q[i]
@@ -49,6 +82,7 @@ export default function QuizPage() {
     setCorrect(word)
     setOptions(buildOptions(word, allWords))
     setChosen(null)
+    setCurrentExample(urlModeRef.current === 'mimo-sentence' ? getWordExample(word) : null)
   }, [])
 
   useEffect(() => {
@@ -56,6 +90,7 @@ export default function QuizPage() {
     const urlMode = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('mode') ?? ''
       : ''
+    urlModeRef.current = urlMode
 
     let mimoIds: string[] = []
     if (urlMode.startsWith('mimo-')) {
@@ -202,6 +237,7 @@ export default function QuizPage() {
   if (done) {
     const total = queue.length
     const pct = total > 0 ? Math.round((score / total) * 100) : 0
+    const isMimoMode = urlModeRef.current.startsWith('mimo-')
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center animate-fade-up">
         <div className="text-6xl mb-4">{pct >= 80 ? '🏆' : pct >= 60 ? '👍' : '💪'}</div>
@@ -213,23 +249,36 @@ export default function QuizPage() {
           错误 <strong className="text-danger">{wrongCount}</strong> 题（已加入错词本）
         </p>
         <div className="flex flex-col gap-3 w-full max-w-xs">
-          <button
-            onClick={() => {
-              setDone(false)
-              setScore(0)
-              setWrongCount(0)
-              const pm = Object.fromEntries(allWords.map((w) => [w.id, getWordProgress(w.id)]))
-              const q = buildReviewQueue(allWords.map((w) => w.id), pm).slice(0, 20)
-              setQueue(q)
-              setIndex(0)
-              saveQuizProgress({ currentQuizQueue: q, currentQuizIndex: 0, answeredWordIds: [], wrongWordIds: [], updatedAt: new Date().toISOString() })
-              if (q.length > 0) setupQuestion(q, 0)
-              else setDone(true)
-            }}
-            className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
-          >
-            再来一轮
-          </button>
+          {isMimoMode ? (
+            <button
+              onClick={() => {
+                const task = QUIZ_MODE_TO_TASK[urlModeRef.current]
+                if (task) markTaskComplete(task)
+                router.push('/daily-plan')
+              }}
+              className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
+            >
+              返回今日计划
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setDone(false)
+                setScore(0)
+                setWrongCount(0)
+                const pm = Object.fromEntries(allWords.map((w) => [w.id, getWordProgress(w.id)]))
+                const q = buildReviewQueue(allWords.map((w) => w.id), pm).slice(0, 20)
+                setQueue(q)
+                setIndex(0)
+                saveQuizProgress({ currentQuizQueue: q, currentQuizIndex: 0, answeredWordIds: [], wrongWordIds: [], updatedAt: new Date().toISOString() })
+                if (q.length > 0) setupQuestion(q, 0)
+                else setDone(true)
+              }}
+              className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
+            >
+              再来一轮
+            </button>
+          )}
           <button onClick={() => router.push('/')} className="bg-white text-text-primary rounded-xl py-3 font-semibold shadow-card active:scale-[0.97] transition-all">
             返回首页
           </button>
@@ -268,8 +317,26 @@ export default function QuizPage() {
 
       {/* Question */}
       <div className="bg-white rounded-xl shadow-card p-6 mb-5">
-        <p className="text-xs text-text-tertiary mb-2">这个单词的中文意思是？</p>
-        <p className="text-3xl font-bold text-text-primary">{correct.word}</p>
+        <p className="text-xs text-text-tertiary mb-2">
+          {urlModeRef.current === 'mimo-sentence' ? '阅读句子，判断加粗词的含义：' : '这个单词的中文意思是？'}
+        </p>
+        {urlModeRef.current === 'mimo-sentence' && currentExample && (
+          <p className="text-sm text-text-secondary leading-relaxed italic mb-3 border-l-2 border-accent/40 pl-3">
+            <SentenceHighlight sentence={currentExample.en} word={correct.word} />
+          </p>
+        )}
+        <div className="flex items-center gap-3">
+          <p className="text-3xl font-bold text-text-primary">{correct.word}</p>
+          {canUseSpeech() && (
+            <button
+              onClick={() => speakWordDirect(correct.word, {})}
+              className="text-text-tertiary active:text-accent transition-colors p-1"
+              aria-label="朗读"
+            >
+              🔊
+            </button>
+          )}
+        </div>
         <p className="text-sm text-text-tertiary mt-1">{correct.pos}</p>
       </div>
 

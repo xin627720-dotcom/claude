@@ -5,16 +5,27 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getTodayMimoPlan, getMimoPlanSettings } from '@/lib/mimoPlan'
 import { getWordById } from '@/lib/vocab'
+import { allWords } from '@/lib/vocab'
+import { loadStore } from '@/lib/localStore'
+import { calculateLearningStats } from '@/lib/stats'
+import {
+  getCurrentDailyTask,
+  getCompletedTasks,
+  getDailyTaskSequence,
+  TASK_META,
+  type MimoTask,
+} from '@/lib/mimoTaskRunner'
 import type { MimoDailyPlan } from '@/lib/types'
 
 interface TaskSection {
-  id: string
+  id: MimoTask
   title: string
   icon: string
   wordIds: string[]
   color: string
   bgColor: string
   mode: string
+  page: 'learn' | 'quiz'
   description: string
 }
 
@@ -29,27 +40,29 @@ function WordChip({ wordId }: { wordId: string }) {
   )
 }
 
-function TaskCard({ section }: { section: TaskSection }) {
+function TaskCard({ section, completed }: { section: TaskSection; completed: boolean }) {
   const [expanded, setExpanded] = useState(false)
   if (section.wordIds.length === 0) return null
 
   return (
-    <div className={`rounded-xl p-4 mb-3 ${section.bgColor}`}>
+    <div className={`rounded-xl p-4 mb-3 ${section.bgColor} ${completed ? 'opacity-60' : ''}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className="text-lg">{section.icon}</span>
           <div>
-            <p className={`text-sm font-semibold ${section.color}`}>{section.title}</p>
+            <div className="flex items-center gap-1.5">
+              <p className={`text-sm font-semibold ${section.color}`}>{section.title}</p>
+              {completed && <span className="text-[10px] bg-success/20 text-success px-1.5 py-0.5 rounded-full">✓ 已完成</span>}
+            </div>
             <p className="text-xs text-text-tertiary">{section.wordIds.length} 个词 · {section.description}</p>
           </div>
         </div>
         <div className="flex gap-1.5">
           <Link
-            href={`/learn?mode=${section.mode}`}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium text-white active:scale-95 transition-all`}
-            style={{ backgroundColor: section.color.replace('text-', '') }}
+            href={`/${section.page}?mode=${section.mode}`}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-accent active:scale-95 transition-all"
           >
-            开始
+            {completed ? '再练' : '开始'}
           </Link>
           <button
             onClick={() => setExpanded(e => !e)}
@@ -76,9 +89,16 @@ function TaskCard({ section }: { section: TaskSection }) {
 export default function DailyPlanPage() {
   const router = useRouter()
   const [plan, setPlan] = useState<MimoDailyPlan | null>(null)
+  const [completedTasks, setCompletedTasks] = useState<MimoTask[]>([])
+  const [liveStats, setLiveStats] = useState<{ masteredWords: number; remainingWords: number } | null>(null)
 
   useEffect(() => {
-    setPlan(getTodayMimoPlan())
+    const p = getTodayMimoPlan()
+    setPlan(p)
+    setCompletedTasks(getCompletedTasks())
+    const store = loadStore()
+    const s = calculateLearningStats(allWords.length, store.wordProgress)
+    setLiveStats({ masteredWords: s.masteredWords, remainingWords: s.remainingWords })
   }, [])
 
   const settings = getMimoPlanSettings()
@@ -108,6 +128,7 @@ export default function DailyPlanPage() {
       color: 'text-accent',
       bgColor: 'bg-accent/5',
       mode: 'mimo-new',
+      page: 'learn',
       description: '阅读识义，快速反应中文',
     },
     {
@@ -118,6 +139,7 @@ export default function DailyPlanPage() {
       color: 'text-blue-500',
       bgColor: 'bg-blue-50',
       mode: 'mimo-review',
+      page: 'learn',
       description: '到期词巩固，防止遗忘',
     },
     {
@@ -128,6 +150,7 @@ export default function DailyPlanPage() {
       color: 'text-danger',
       bgColor: 'bg-red-50',
       mode: 'mimo-wrong',
+      page: 'learn',
       description: '重点攻克，减少失分',
     },
     {
@@ -138,6 +161,7 @@ export default function DailyPlanPage() {
       color: 'text-warning',
       bgColor: 'bg-amber-50',
       mode: 'mimo-fuzzy',
+      page: 'learn',
       description: '提升模糊词确定性',
     },
     {
@@ -148,6 +172,7 @@ export default function DailyPlanPage() {
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       mode: 'mimo-sentence',
+      page: 'quiz',
       description: '高考阅读场景练习',
     },
     {
@@ -158,16 +183,23 @@ export default function DailyPlanPage() {
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       mode: 'mimo-confusing',
+      page: 'quiz',
       description: '区分易混词，减少误选',
     },
   ]
 
   const activeSections = taskSections.filter(s => s.wordIds.length > 0)
   const totalTasks = activeSections.reduce((sum, s) => sum + s.wordIds.length, 0)
+  const sequence = getDailyTaskSequence(plan)
+  const nextTask = getCurrentDailyTask(plan)
+  const allDone = sequence.length > 0 && completedTasks.filter(t => sequence.includes(t)).length === sequence.length
 
   const intensityLabel =
     settings.dailyIntensity === 'easy' ? '轻松' :
     settings.dailyIntensity === 'normal' ? '标准' : '冲刺'
+
+  const displayMastered = liveStats?.masteredWords ?? plan.masteredWords
+  const displayRemaining = liveStats?.remainingWords ?? plan.remainingWords
 
   return (
     <div className="px-4 pt-12 pb-6 animate-fade-up">
@@ -187,7 +219,7 @@ export default function DailyPlanPage() {
         )}
       </div>
 
-      {/* Goal summary */}
+      {/* Goal summary with live stats */}
       <div className="bg-gradient-to-r from-accent/10 to-purple-100 rounded-xl p-4 mb-4">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
@@ -195,7 +227,7 @@ export default function DailyPlanPage() {
             <p className="text-xs text-text-secondary">剩余天数</p>
           </div>
           <div>
-            <p className="text-xl font-bold text-text-primary">{plan.remainingWords}</p>
+            <p className="text-xl font-bold text-text-primary">{displayRemaining}</p>
             <p className="text-xs text-text-secondary">剩余词汇</p>
           </div>
           <div>
@@ -205,7 +237,7 @@ export default function DailyPlanPage() {
         </div>
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-accent/10 text-xs text-text-secondary">
           <span>{intensityLabel}模式 · 共 {totalTasks} 个词</span>
-          <span>{plan.masteredWords} / {plan.totalWords} 已掌握</span>
+          <span>{displayMastered} / {plan.totalWords} 已掌握</span>
         </div>
       </div>
 
@@ -220,27 +252,38 @@ export default function DailyPlanPage() {
 
       {/* Task sections */}
       {activeSections.map(s => (
-        <TaskCard key={s.id} section={s} />
+        <TaskCard key={s.id} section={s} completed={completedTasks.includes(s.id)} />
       ))}
 
-      {/* Quick start all */}
-      <div className="flex gap-2 mt-4">
-        <Link
-          href={`/learn?mode=mimo-new`}
-          className="flex-1 py-3 rounded-xl bg-accent text-white text-sm font-semibold text-center active:scale-[0.97] transition-all"
-        >
-          开始新词学习
-        </Link>
-        <Link
-          href={`/quiz?mode=mimo-sentence`}
-          className="flex-1 py-3 rounded-xl bg-white text-text-primary text-sm font-semibold text-center shadow-card active:scale-[0.97] transition-all"
-        >
-          阅读识义测验
-        </Link>
-      </div>
+      {/* Sequential start / all done */}
+      {allDone ? (
+        <div className="mt-4 py-4 rounded-xl bg-success/10 text-center">
+          <p className="text-success font-semibold text-sm">🎉 今日计划全部完成！</p>
+          <p className="text-xs text-text-tertiary mt-1">{plan.motivationalMessage}</p>
+        </div>
+      ) : (
+        <div className="flex gap-2 mt-4">
+          {nextTask && (
+            <button
+              onClick={() => {
+                const meta = TASK_META[nextTask]
+                router.push(`/${meta.page}?mode=${meta.mode}`)
+              }}
+              className="flex-1 py-3 rounded-xl bg-accent text-white text-sm font-semibold text-center active:scale-[0.97] transition-all"
+            >
+              {`继续 · ${TASK_META[nextTask].icon} ${TASK_META[nextTask].title}`}
+            </button>
+          )}
+          <Link
+            href="/quiz?mode=mimo-sentence"
+            className="flex-1 py-3 rounded-xl bg-white text-text-primary text-sm font-semibold text-center shadow-card active:scale-[0.97] transition-all"
+          >
+            阅读识义测验
+          </Link>
+        </div>
+      )}
 
-      {/* Motivational message */}
-      {plan.motivationalMessage && (
+      {!allDone && plan.motivationalMessage && (
         <p className="text-xs text-center text-text-tertiary mt-4">{plan.motivationalMessage}</p>
       )}
     </div>

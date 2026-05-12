@@ -3,8 +3,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { allWords, getWordById } from '@/lib/vocab'
-import { getWordProgress, saveWordProgress, getUserStats, saveUserStats } from '@/lib/localStore'
-import { updateProgressAfterReview, buildReviewQueue } from '@/lib/review'
+import { getWordProgress, saveWordProgress, getUserStats, saveUserStats, saveWrongWord, getWrongWords } from '@/lib/localStore'
+import { updateProgressAfterReview, buildReviewQueue, getNextReviewDate } from '@/lib/review'
+import { getLearningSession, saveLearningSession, clearLearningSession, updateSessionProgress } from '@/lib/mimoLearningSession'
+import { markTaskComplete, type MimoTask } from '@/lib/mimoTaskRunner'
 import { trySyncInBackground } from '@/lib/sync'
 import {
   canUseSpeech,
@@ -57,6 +59,7 @@ export default function LearnPage() {
   const lastSpokenWordRef = useRef<string | null>(null)
   /** Next queue index written by handleResultImmediate, read by handleResult */
   const nextIndexRef = useRef<number>(0)
+  const urlModeRef = useRef<string>('')
 
   const patchDebug = useCallback((patch: Partial<SpeechDebug>) => {
     setSpeechDebug(d => ({ ...d, ...patch }))
@@ -88,20 +91,39 @@ export default function LearnPage() {
     const urlMode = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('mode') ?? ''
       : ''
+    urlModeRef.current = urlMode
 
     let q: string[] = []
+    let startIndex = 0
+
     if (urlMode.startsWith('mimo-')) {
       try {
+        const today = new Date().toISOString().slice(0, 10)
         const raw = localStorage.getItem('mimoDailyPlan_v1')
         if (raw) {
           const plan = JSON.parse(raw)
-          const today = new Date().toISOString().slice(0, 10)
           if (plan.date === today) {
             if (urlMode === 'mimo-new') q = plan.newWordIds ?? []
             else if (urlMode === 'mimo-review') q = plan.reviewWordIds ?? []
             else if (urlMode === 'mimo-wrong') q = plan.wrongWordIds ?? []
             else if (urlMode === 'mimo-fuzzy') q = plan.fuzzyWordIds ?? []
           }
+        }
+
+        // Resume from saved session if available
+        const session = getLearningSession(urlMode)
+        if (session && session.currentIndex > 0 && session.currentIndex < session.wordIds.length) {
+          q = session.wordIds
+          startIndex = session.currentIndex
+        } else if (q.length > 0) {
+          saveLearningSession({
+            date: today,
+            mode: urlMode,
+            wordIds: q,
+            currentIndex: 0,
+            completedWordIds: [],
+            updatedAt: new Date().toISOString(),
+          })
         }
       } catch {}
     }
@@ -114,10 +136,10 @@ export default function LearnPage() {
     }
 
     setQueue(q)
-    setIndex(0)
-    nextIndexRef.current = 0
+    setIndex(startIndex)
+    nextIndexRef.current = startIndex
     if (q.length > 0) {
-      setCurrentWord(getWordById(q[0]) ?? null)
+      setCurrentWord(getWordById(q[startIndex]) ?? null)
     } else {
       setDone(true)
     }
@@ -214,7 +236,26 @@ export default function LearnPage() {
       })
 
       const next = nextIndexRef.current
+
+      if (result === 'wrong') {
+        const ww = getWrongWords()[currentWord.id]
+        saveWrongWord({
+          wordId: currentWord.id,
+          wrongCount: (ww?.wrongCount ?? 0) + 1,
+          lastWrongAt: new Date().toISOString(),
+          nextReviewAt: getNextReviewDate('learning'),
+          updatedAt: new Date().toISOString(),
+        })
+      }
+
+      if (urlModeRef.current.startsWith('mimo-')) {
+        updateSessionProgress(urlModeRef.current, next, currentWord.id)
+      }
+
       if (next >= queue.length) {
+        if (urlModeRef.current.startsWith('mimo-')) {
+          clearLearningSession(urlModeRef.current)
+        }
         setDone(true)
         trySyncInBackground()
         return
@@ -233,6 +274,11 @@ export default function LearnPage() {
 
   // ── Done screen ───────────────────────────────────────────────────────────────
   if (done) {
+    const isMimoMode = urlModeRef.current.startsWith('mimo-')
+    const learnModeToTask: Record<string, MimoTask> = {
+      'mimo-review': 'review', 'mimo-wrong': 'wrong',
+      'mimo-fuzzy': 'fuzzy', 'mimo-new': 'new',
+    }
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center animate-fade-up">
         <div className="text-6xl mb-4">🎉</div>
@@ -240,25 +286,38 @@ export default function LearnPage() {
         <p className="text-text-secondary mb-2">本次学习了 <strong>{sessionCount}</strong> 个单词</p>
         <p className="text-sm text-text-tertiary mb-8">继续保持，明天进步更大！</p>
         <div className="flex flex-col gap-3 w-full max-w-xs">
-          <button
-            onClick={() => {
-              setDone(false)
-              setIndex(0)
-              setSessionCount(0)
-              lastSpokenWordRef.current = null
-              nextIndexRef.current = 0
-              const progressMap = Object.fromEntries(
-                allWords.map((w) => [w.id, getWordProgress(w.id)])
-              )
-              const q = buildReviewQueue(allWords.map((w) => w.id), progressMap).slice(0, 30)
-              setQueue(q)
-              if (q.length > 0) setCurrentWord(getWordById(q[0]) ?? null)
-              else setDone(true)
-            }}
-            className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
-          >
-            继续学习
-          </button>
+          {isMimoMode ? (
+            <button
+              onClick={() => {
+                const task = learnModeToTask[urlModeRef.current]
+                if (task) markTaskComplete(task)
+                router.push('/daily-plan')
+              }}
+              className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
+            >
+              返回今日计划
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setDone(false)
+                setIndex(0)
+                setSessionCount(0)
+                lastSpokenWordRef.current = null
+                nextIndexRef.current = 0
+                const progressMap = Object.fromEntries(
+                  allWords.map((w) => [w.id, getWordProgress(w.id)])
+                )
+                const q = buildReviewQueue(allWords.map((w) => w.id), progressMap).slice(0, 30)
+                setQueue(q)
+                if (q.length > 0) setCurrentWord(getWordById(q[0]) ?? null)
+                else setDone(true)
+              }}
+              className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
+            >
+              继续学习
+            </button>
+          )}
           <button
             onClick={() => router.push('/')}
             className="bg-white text-text-primary rounded-xl py-3 font-semibold shadow-card active:scale-[0.97] transition-all"

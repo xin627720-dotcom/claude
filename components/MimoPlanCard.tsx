@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { allWords } from '@/lib/vocab'
 import { loadStore } from '@/lib/localStore'
+import { calculateLearningStats } from '@/lib/stats'
 import {
   getMimoPlanSettings,
   getTodayMimoPlan,
@@ -42,10 +43,7 @@ export default function MimoPlanCard() {
       const pm = store.wordProgress
 
       // Stats
-      const statuses = Object.values(pm)
-      const learnedWords = statuses.filter(p => p.status !== 'unseen').length
-      const masteredWords = statuses.filter(p => p.status === 'mastered').length
-      const remainingWords = allWords.length - masteredWords
+      const { learnedWords, masteredWords, remainingWords } = calculateLearningStats(allWords.length, pm)
       const daysRemaining = calculateDaysRemaining(settings.targetDate)
       const { target: dailyNewTarget, warning } = calculateDailyNewWordTarget(
         allWords.length - learnedWords,
