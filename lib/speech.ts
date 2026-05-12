@@ -1,88 +1,82 @@
-'use client'
+// Speech synthesis utility — SSR-safe, no 'use client' needed (guards inside each fn)
 
-const SPEAK_SETTING_KEY = 'auto_speak_enabled'
+const AUTOSPEAK_KEY = 'autoSpeakEnabled'
+const SPEECH_UNLOCKED_KEY = 'speechUnlocked'
 
-export function canSpeak(): boolean {
+export function canUseSpeech(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
-export function stopSpeaking(): void {
-  if (!canSpeak()) return
-  window.speechSynthesis.cancel()
+export function stopSpeech(): void {
+  if (!canUseSpeech()) return
+  try { window.speechSynthesis.cancel() } catch {}
 }
 
-export function speakText(text: string, rate = 0.85): void {
-  if (!canSpeak()) return
-  window.speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(text)
-  u.lang = 'en-US'
-  u.rate = rate
-  window.speechSynthesis.speak(u)
+export function speakWord(
+  word: string,
+  opts?: { onStart?: () => void; onEnd?: () => void }
+): void {
+  if (!canUseSpeech()) return
+  try {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(word)
+    u.lang = 'en-US'
+    u.rate = 0.85
+    u.pitch = 1
+    u.volume = 1
+    u.onstart = opts?.onStart ?? null
+    u.onend = opts?.onEnd ?? null
+    u.onerror = (e: SpeechSynthesisErrorEvent) => {
+      // 'interrupted'/'canceled' means we called cancel() ourselves, not a real error
+      if (e.error !== 'interrupted' && e.error !== 'canceled') {
+        console.debug('[speech] error:', e.error)
+      }
+      opts?.onEnd?.()
+    }
+    window.speechSynthesis.speak(u)
+  } catch (e) {
+    console.debug('[speech] speakWord threw:', e)
+    opts?.onEnd?.()
+  }
 }
 
 /**
- * Speak with lifecycle callbacks. Returns a cleanup fn to cancel the silence timer.
- * onBlocked fires when speech is not-allowed OR when no onstart fires within 600ms
- * (handles iOS Safari which sometimes silently swallows blocked speech).
+ * Warm up iOS Safari speech synthesis with a zero-volume utterance.
+ * Must be called synchronously inside a user-gesture handler.
  */
-export function speakTextTracked(
-  text: string,
-  opts: {
-    rate?: number
-    onStart?: () => void
-    onEnd?: () => void
-    onBlocked?: () => void
-  }
-): () => void {
-  if (!canSpeak()) {
-    opts.onBlocked?.()
-    return () => {}
-  }
-
-  window.speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(text)
-  u.lang = 'en-US'
-  u.rate = opts.rate ?? 0.85
-
-  let started = false
-
-  // Fallback: if no onstart within 600ms, treat as blocked (covers iOS Safari)
-  const silenceTimer = window.setTimeout(() => {
-    if (!started) opts.onBlocked?.()
-  }, 600)
-
-  u.onstart = () => {
-    started = true
-    clearTimeout(silenceTimer)
-    opts.onStart?.()
-  }
-
-  u.onend = () => {
-    clearTimeout(silenceTimer)
-    opts.onEnd?.()
-  }
-
-  u.onerror = (e: SpeechSynthesisErrorEvent) => {
-    clearTimeout(silenceTimer)
-    // 'interrupted' means we cancelled it ourselves — not an error
-    if (e.error !== 'interrupted' && e.error !== 'canceled') {
-      opts.onBlocked?.()
-    }
-    opts.onEnd?.()
-  }
-
-  window.speechSynthesis.speak(u)
-
-  return () => clearTimeout(silenceTimer)
+export function unlockSpeechEngine(): void {
+  if (!canUseSpeech()) return
+  try {
+    const u = new SpeechSynthesisUtterance(' ')
+    u.volume = 0
+    u.lang = 'en-US'
+    window.speechSynthesis.speak(u)
+  } catch {}
 }
+
+// ── Settings ──────────────────────────────────────────────────────────────────
 
 export function getAutoSpeakEnabled(): boolean {
   if (typeof window === 'undefined') return true
-  const val = localStorage.getItem(SPEAK_SETTING_KEY)
+  const val = localStorage.getItem(AUTOSPEAK_KEY)
   return val === null ? true : val === 'true'
 }
 
 export function setAutoSpeakEnabled(enabled: boolean): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(SPEAK_SETTING_KEY, String(enabled))
+  localStorage.setItem(AUTOSPEAK_KEY, String(enabled))
+}
+
+/**
+ * Returns true if the user has already clicked a button this session,
+ * meaning the browser's autoplay gate has been cleared.
+ */
+export function getSpeechUnlocked(): boolean {
+  if (typeof window === 'undefined') return false
+  return sessionStorage.getItem(SPEECH_UNLOCKED_KEY) === 'true'
+}
+
+export function persistSpeechUnlocked(): void {
+  if (typeof window === 'undefined') return
+  sessionStorage.setItem(SPEECH_UNLOCKED_KEY, 'true')
 }

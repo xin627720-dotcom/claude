@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import type { VocabWord } from '@/lib/types'
-import { speakText, canSpeak } from '@/lib/speech'
+import { canUseSpeech } from '@/lib/speech'
 
 interface WordCardProps {
   word: VocabWord
@@ -10,6 +10,10 @@ interface WordCardProps {
   isFavorite?: boolean
   onToggleFavorite?: () => void
   showProgress?: string
+  /** Parent handles speaking; called when user clicks the 🔊 button */
+  onSpeak?: () => void
+  /** Called on any button press — parent uses this to unlock speech session */
+  onInteract?: () => void
 }
 
 export default function WordCard({
@@ -18,17 +22,20 @@ export default function WordCard({
   isFavorite = false,
   onToggleFavorite,
   showProgress,
+  onSpeak,
+  onInteract,
 }: WordCardProps) {
   const [revealed, setRevealed] = useState(false)
   const [chosen, setChosen] = useState<'correct' | 'fuzzy' | 'wrong' | null>(null)
 
   const handleReveal = () => {
-    if (!revealed) speakText(word.word)
+    onInteract?.()
     setRevealed(true)
   }
 
   const handleResult = useCallback(
     (result: 'correct' | 'fuzzy' | 'wrong') => {
+      onInteract?.()
       setChosen(result)
       setTimeout(() => {
         setRevealed(false)
@@ -36,8 +43,13 @@ export default function WordCard({
         onResult(result)
       }, 320)
     },
-    [onResult]
+    [onResult, onInteract]
   )
+
+  const handleSpeak = () => {
+    onInteract?.()
+    onSpeak?.()
+  }
 
   const feedbackBg =
     chosen === 'correct'
@@ -58,10 +70,10 @@ export default function WordCard({
         <div className="ml-auto flex items-center gap-3">
           {/* Speak button */}
           <button
-            onClick={() => speakText(word.word)}
+            onClick={handleSpeak}
             className="p-1.5 rounded-full text-text-tertiary active:text-accent active:scale-95 transition-all"
             aria-label="朗读"
-            title={canSpeak() ? '朗读' : '当前浏览器不支持朗读'}
+            title={canUseSpeech() ? '朗读' : '当前浏览器不支持朗读'}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v11.494m0 0l-2.53-2.53M12 17.747l2.53-2.53M6.343 9.343a8 8 0 000 5.314m10-5.314a8 8 0 010 5.314" />
