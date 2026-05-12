@@ -12,7 +12,7 @@ export interface VocabWord {
   synonyms: string[]
   antonyms: string[]
   root: string
-  examTips: string
+  examTips: string[]
   level: WordLevel
 }
 

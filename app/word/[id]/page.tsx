@@ -165,7 +165,7 @@ export default function WordDetailPage({ params }: { params: Promise<{ id: strin
       )}
 
       {/* Root + exam tips */}
-      {(word.root || word.examTips) && (
+      {(word.root || word.examTips.length > 0) && (
         <div className="bg-white rounded-xl shadow-card p-5 mb-4">
           {word.root && (
             <div className="mb-3">
@@ -173,10 +173,14 @@ export default function WordDetailPage({ params }: { params: Promise<{ id: strin
               <p className="text-sm text-text-primary">{word.root}</p>
             </div>
           )}
-          {word.examTips && (
+          {word.examTips.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold text-warning mb-1">考试提示</h2>
-              <p className="text-sm text-text-primary">{word.examTips}</p>
+              <ul className="space-y-1">
+                {word.examTips.map((tip, i) => (
+                  <li key={i} className="text-sm text-text-primary">• {tip}</li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

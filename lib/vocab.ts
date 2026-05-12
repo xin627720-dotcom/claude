@@ -2,8 +2,8 @@ import basicRaw from '@/data/vocab-basic.json'
 import coreRaw from '@/data/vocab-core.json'
 import type { VocabWord } from './types'
 
-export const basicWords: VocabWord[] = basicRaw as VocabWord[]
-export const coreWords: VocabWord[] = coreRaw as VocabWord[]
+export const basicWords: VocabWord[] = basicRaw as unknown as VocabWord[]
+export const coreWords: VocabWord[] = coreRaw as unknown as VocabWord[]
 export const allWords: VocabWord[] = [...basicWords, ...coreWords]
 
 const wordMap = new Map<string, VocabWord>(allWords.map((w) => [w.id, w]))
