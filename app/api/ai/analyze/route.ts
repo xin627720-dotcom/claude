@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { AiAnalyzeRequest, AiAnalysisResult } from '@/lib/aiTypes'
 
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
+// URL, model and key are all read from env so they work with any OpenAI-compatible provider
+function getApiConfig() {
+  const apiKey = process.env.OPENAI_API_KEY ?? ''
+  const baseURL = (process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1').replace(/\/$/, '')
+  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+  const apiUrl = `${baseURL}/chat/completions`
+  return { apiKey, model, apiUrl }
+}
 
 function buildSystemPrompt(): string {
   return `你是一位专业的英语学习顾问，擅长分析高中生的词汇学习数据并给出个性化建议。
@@ -47,8 +54,7 @@ ${weakWordsSummary || '暂无薄弱词汇'}
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const apiKey = process.env.OPENAI_API_KEY
-  const model = process.env.OPENAI_MODEL ?? 'gpt-4.1-mini'
+  const { apiKey, model, apiUrl } = getApiConfig()
 
   if (!apiKey) {
     return NextResponse.json({ error: 'AI service not configured' }, { status: 503 })
@@ -66,7 +72,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const response = await fetch(OPENAI_API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -86,8 +92,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (!response.ok) {
       const errText = await response.text()
-      console.error('[ai/analyze] OpenAI error:', response.status, errText)
-      return NextResponse.json({ error: 'AI service error' }, { status: 502 })
+      return NextResponse.json(
+        { error: 'provider_error', status: response.status, message: errText },
+        { status: 502 }
+      )
     }
 
     const data = await response.json() as {

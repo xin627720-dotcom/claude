@@ -28,6 +28,7 @@ export default function WrongWordsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [enrichedData, setEnrichedData] = useState<Record<string, Partial<VocabWord>>>({})
   const [enrichingId, setEnrichingId] = useState<string | null>(null)
+  const [enrichErrors, setEnrichErrors] = useState<Record<string, string>>({})
 
   const reload = useCallback(() => {
     const arr = getWrongWordsList()
@@ -47,6 +48,7 @@ export default function WrongWordsPage() {
     }
 
     setEnrichingId(wordId)
+    setEnrichErrors(prev => { const next = { ...prev }; delete next[wordId]; return next })
     try {
       const resp = await fetch('/api/word/enrich', {
         method: 'POST',
@@ -55,11 +57,22 @@ export default function WrongWordsPage() {
       })
       if (resp.ok) {
         const data = await resp.json()
-        setEnrichCache(word.word, data)
-        setEnrichedData(prev => ({ ...prev, [wordId]: data }))
+        // Only cache and display on success — never cache failures or empty results
+        if (data && typeof data === 'object' && !data.error) {
+          setEnrichCache(word.word, data)
+          setEnrichedData(prev => ({ ...prev, [wordId]: data }))
+        } else {
+          const msg = data?.message ?? data?.error ?? 'AI 返回了空结果'
+          setEnrichErrors(prev => ({ ...prev, [wordId]: msg }))
+        }
+      } else {
+        const errBody = await resp.json().catch(() => ({}))
+        const msg = errBody?.message ?? errBody?.error ?? `HTTP ${resp.status}`
+        setEnrichErrors(prev => ({ ...prev, [wordId]: msg }))
       }
-    } catch {
-      // fail silently — WordDetail shows fallback placeholders
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '网络错误'
+      setEnrichErrors(prev => ({ ...prev, [wordId]: msg }))
     } finally {
       setEnrichingId(null)
     }
@@ -122,6 +135,7 @@ export default function WrongWordsPage() {
             const isExpanded = expandedId === ww.wordId
             const isEnriching = enrichingId === ww.wordId
             const enriched = enrichedData[ww.wordId]
+            const enrichError = enrichErrors[ww.wordId]
             const displayWord = word && enriched ? { ...word, ...enriched } : word
 
             return (
@@ -150,6 +164,9 @@ export default function WrongWordsPage() {
                 {/* Inline detail */}
                 {displayWord && isExpanded && (
                   <div className="mt-3 pt-3 border-t border-bg-tertiary">
+                    {enrichError && (
+                      <p className="text-xs text-danger mb-2">AI 详情生成失败：{enrichError}</p>
+                    )}
                     <WordDetail word={displayWord} compact enriching={isEnriching} />
                   </div>
                 )}

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
-
 export async function POST(req: NextRequest) {
   const key = process.env.OPENAI_API_KEY
+  const baseURL = (process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1').replace(/\/$/, '')
+  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+  const apiUrl = `${baseURL}/chat/completions`
+
   if (!key) return NextResponse.json({ error: 'no_key' }, { status: 503 })
 
   let body: { word?: string; meaning?: string; pos?: string; level?: string }
@@ -45,14 +47,14 @@ CRITICAL: Every gaokaoExamples entry MUST have isRealExam: false and source: "é«
 Include: 2 examples, 2-4 wordFamily members, 2-3 collocationItems, 1-2 confusingWords.`
 
   try {
-    const resp = await fetch(OPENAI_API_URL, {
+    const resp = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 1200,
@@ -61,7 +63,13 @@ Include: 2 examples, 2-4 wordFamily members, 2-3 collocationItems, 1-2 confusing
       signal: AbortSignal.timeout(30000),
     })
 
-    if (!resp.ok) return NextResponse.json({ error: 'openai_error' }, { status: 502 })
+    if (!resp.ok) {
+      const errText = await resp.text()
+      return NextResponse.json(
+        { error: 'provider_error', status: resp.status, message: errText },
+        { status: 502 }
+      )
+    }
 
     const data = await resp.json()
     const content = data.choices?.[0]?.message?.content
