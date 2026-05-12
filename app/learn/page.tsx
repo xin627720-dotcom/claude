@@ -8,14 +8,26 @@ import { updateProgressAfterReview, buildReviewQueue } from '@/lib/review'
 import { trySyncInBackground } from '@/lib/sync'
 import {
   canUseSpeech,
-  speakWord,
+  speakWordDirect,
   stopSpeech,
+  loadVoices,
+  getEnglishVoice,
   getAutoSpeakEnabled,
   getSpeechUnlocked,
   persistSpeechUnlocked,
 } from '@/lib/speech'
 import WordCard from '@/components/WordCard'
 import type { VocabWord } from '@/lib/types'
+
+type SpeakStatus = '未开始' | '播放中' | '已结束' | '出错'
+
+interface SpeechDebug {
+  voiceCount: number
+  voiceName: string
+  lastWord: string
+  status: SpeakStatus
+  error: string
+}
 
 export default function LearnPage() {
   const router = useRouter()
@@ -28,24 +40,49 @@ export default function LearnPage() {
   // ── Speech state ─────────────────────────────────────────────────────────────
   const [autoSpeakEnabled, setAutoSpeakEnabled] = useState(true)
   /**
-   * speechUnlocked: true once the user has clicked any button this session.
-   * Browsers block speechSynthesis until a user-gesture fires (especially iOS Safari).
-   * Persisted in sessionStorage so it survives same-tab navigation.
+   * speechUnlocked is set to true only when onstart fires (browser confirmed
+   * it is actually playing audio). This is the only reliable signal that the
+   * autoplay gate has been satisfied.
    */
   const [speechUnlocked, setSpeechUnlocked] = useState(false)
   const [speechSupported, setSpeechSupported] = useState(false)
-  /** Last word ID spoken — prevents the backup useEffect from double-speaking */
+  const [speechDebug, setSpeechDebug] = useState<SpeechDebug>({
+    voiceCount: 0,
+    voiceName: '检测中…',
+    lastWord: '',
+    status: '未开始',
+    error: '',
+  })
+  /** Last word ID spoken — prevents backup useEffect from double-speaking */
   const lastSpokenWordRef = useRef<string | null>(null)
-  /** Next queue index, written by handleResultImmediate, read by handleResult */
+  /** Next queue index written by handleResultImmediate, read by handleResult */
   const nextIndexRef = useRef<number>(0)
+
+  const patchDebug = useCallback((patch: Partial<SpeechDebug>) => {
+    setSpeechDebug(d => ({ ...d, ...patch }))
+  }, [])
 
   // ── Init ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    setSpeechSupported(canUseSpeech())
+    const supported = canUseSpeech()
+    setSpeechSupported(supported)
     setAutoSpeakEnabled(getAutoSpeakEnabled())
 
     const alreadyUnlocked = getSpeechUnlocked()
     if (alreadyUnlocked) setSpeechUnlocked(true)
+
+    if (supported) {
+      loadVoices().then(voices => {
+        const ev = getEnglishVoice()
+        setSpeechDebug(d => ({
+          ...d,
+          voiceCount: voices.length,
+          voiceName: ev?.name ?? (voices.length > 0 ? `默认(${voices[0].name})` : '无可用音色'),
+        }))
+      })
+    } else {
+      setSpeechDebug(d => ({ ...d, voiceCount: 0, voiceName: '不支持' }))
+    }
 
     const progressMap = Object.fromEntries(
       allWords.map((w) => [w.id, getWordProgress(w.id)])
@@ -64,73 +101,66 @@ export default function LearnPage() {
   }, [])
 
   // ── Backup auto-speak ─────────────────────────────────────────────────────────
-  // Primary speech happens synchronously in gesture handlers below.
-  // This useEffect catches edge cases (e.g. speech already unlocked, page reload).
+  // Primary speech fires inside gesture handlers below.
+  // This fires when speechUnlocked becomes true (after test/manual button),
+  // allowing the current word to be spoken if the gesture handlers haven't yet.
   useEffect(() => {
     if (!autoSpeakEnabled || !speechUnlocked || !speechSupported) return
     if (!currentWord?.word) return
     if (lastSpokenWordRef.current === currentWord.id) return
 
-    lastSpokenWordRef.current = currentWord.id
-    console.debug('[AutoSpeak] backup useEffect:', currentWord.word)
-    speakWord(currentWord.word)
-  }, [currentWord?.id, autoSpeakEnabled, speechUnlocked, speechSupported])
-
-  // ── Unlock helper ─────────────────────────────────────────────────────────────
-  const unlockSpeech = useCallback(() => {
-    if (speechUnlocked) return
-    persistSpeechUnlocked()
-    setSpeechUnlocked(true)
-  }, [speechUnlocked])
-
-  // ── "开始学习并开启发音" button ───────────────────────────────────────────────
-  // Called inside a click gesture → speakWord allowed by browser autoplay policy.
-  const handleStartWithSpeech = useCallback(() => {
-    if (!currentWord) return
-    persistSpeechUnlocked()
-    setSpeechUnlocked(true)
-    lastSpokenWordRef.current = currentWord.id
-    console.debug('[Speech] handleStartWithSpeech:', currentWord.word)
-    speakWord(currentWord.word)
-  }, [currentWord])
+    const word = currentWord.word
+    const id = currentWord.id
+    lastSpokenWordRef.current = id
+    speakWordDirect(word, {
+      onStart: () => patchDebug({ status: '播放中', lastWord: word, error: '' }),
+      onEnd: () => patchDebug({ status: '已结束' }),
+      onError: (msg) => patchDebug({ status: '出错', error: msg }),
+    })
+  }, [currentWord?.id, autoSpeakEnabled, speechUnlocked, speechSupported, patchDebug])
 
   // ── Manual 🔊 button ──────────────────────────────────────────────────────────
+  // Direct speak in gesture context; unlock only confirmed when onstart fires.
   const handleSpeak = useCallback(() => {
     if (!currentWord || !canUseSpeech()) return
-    if (!speechUnlocked) {
-      persistSpeechUnlocked()
-      setSpeechUnlocked(true)
-    }
-    lastSpokenWordRef.current = currentWord.id
-    console.debug('[Speech] handleSpeak:', currentWord.word)
-    speakWord(currentWord.word)
-  }, [currentWord, speechUnlocked])
-
-  // ── Called synchronously when user taps a result button ───────────────────────
-  // WordCard calls this BEFORE its 300ms animation, so we're still inside the
-  // browser's user-gesture context — speechSynthesis.speak() is allowed here.
-  const handleResultImmediate = useCallback(
-    (_result: 'correct' | 'fuzzy' | 'wrong') => {
-      // Always update unlock state (even if autoSpeak is off, unlock for manual use)
-      if (!speechUnlocked) {
+    const word = currentWord.word
+    const id = currentWord.id
+    lastSpokenWordRef.current = id
+    speakWordDirect(word, {
+      onStart: () => {
+        patchDebug({ status: '播放中', lastWord: word, error: '' })
         persistSpeechUnlocked()
         setSpeechUnlocked(true)
-      }
+      },
+      onEnd: () => patchDebug({ status: '已结束' }),
+      onError: (msg) => patchDebug({ status: '出错', error: msg }),
+    })
+  }, [currentWord, patchDebug])
 
+  // ── Called synchronously when user taps a result button ───────────────────────
+  // WordCard calls this BEFORE its 300ms animation — we're still in gesture context.
+  // Auto-speak only fires if speechUnlocked is already true (user confirmed audio works).
+  const handleResultImmediate = useCallback(
+    (_result: 'correct' | 'fuzzy' | 'wrong') => {
       const next = index + 1
       nextIndexRef.current = next
 
-      if (!autoSpeakEnabled || !speechSupported) return
+      if (!speechUnlocked || !autoSpeakEnabled || !speechSupported) return
       if (next >= queue.length) return
 
       const nextWord = getWordById(queue[next])
       if (nextWord) {
-        lastSpokenWordRef.current = nextWord.id
-        console.debug('[Speech] handleResultImmediate → next word:', nextWord.word)
-        speakWord(nextWord.word)
+        const word = nextWord.word
+        const id = nextWord.id
+        lastSpokenWordRef.current = id
+        speakWordDirect(word, {
+          onStart: () => patchDebug({ status: '播放中', lastWord: word, error: '' }),
+          onEnd: () => patchDebug({ status: '已结束' }),
+          onError: (msg) => patchDebug({ status: '出错', error: msg }),
+        })
       }
     },
-    [autoSpeakEnabled, speechSupported, speechUnlocked, index, queue]
+    [speechUnlocked, autoSpeakEnabled, speechSupported, index, queue, patchDebug]
   )
 
   // ── Result handler (called after 300ms animation) ─────────────────────────────
@@ -239,36 +269,86 @@ export default function LearnPage() {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-bg-tertiary rounded-full h-1.5 mb-3">
+      <div className="w-full bg-bg-tertiary rounded-full h-1.5 mb-4">
         <div
           className="bg-accent h-1.5 rounded-full transition-all duration-500"
           style={{ width: `${((index + 1) / Math.max(queue.length, 1)) * 100}%` }}
         />
       </div>
 
-      {/* First-time unlock prompt */}
-      {speechSupported && autoSpeakEnabled && !speechUnlocked && (
+      {/* Not supported warning */}
+      {!speechSupported && (
+        <div className="mb-3 p-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-sm">
+          当前浏览器无法播放系统朗读，请尝试使用 Chrome / Safari，或检查系统文字转语音设置。
+        </div>
+      )}
+
+      {/* ── 测试发音 button ────────────────────────────────────────────────────── */}
+      {/* Executes speechSynthesis.speak() directly in onClick — no setTimeout,   */}
+      {/* no setState intermediary. This is the only reliable way to pass         */}
+      {/* mobile browsers' autoplay gate on first use.                            */}
+      {speechSupported && (
         <button
-          onClick={handleStartWithSpeech}
-          className="w-full mb-3 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-sm"
+          onClick={() => {
+            if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+              patchDebug({ status: '出错', error: '当前浏览器不支持 speechSynthesis' })
+              return
+            }
+            window.speechSynthesis.cancel()
+            window.speechSynthesis.resume()
+            const u = new SpeechSynthesisUtterance('hello')
+            u.lang = 'en-US'
+            u.rate = 0.85
+            u.pitch = 1
+            u.volume = 1
+            u.onstart = () => {
+              patchDebug({ status: '播放中', lastWord: 'hello', error: '' })
+              persistSpeechUnlocked()
+              setSpeechUnlocked(true)
+            }
+            u.onend = () => patchDebug({ status: '已结束' })
+            u.onerror = (e) => {
+              patchDebug({ status: '出错', error: String(e.error ?? '未知') })
+            }
+            window.speechSynthesis.speak(u)
+          }}
+          className="w-full mb-3 py-3 rounded-xl bg-accent text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-sm"
         >
-          <span>🔊</span>
-          <span>开始学习并开启发音</span>
+          🔈 测试发音（hello）
         </button>
       )}
 
-      {/* Speech status — fixed height to avoid layout shift */}
-      <div className="flex justify-center items-center h-6 mb-2">
-        {!speechSupported ? (
-          <span className="text-xs text-text-tertiary">当前浏览器不支持朗读</span>
-        ) : autoSpeakEnabled && speechUnlocked ? (
-          <span className="text-xs text-success flex items-center gap-1">
-            <span>🔊</span><span>自动发音：已开启</span>
-          </span>
+      {/* ── Speech diagnostic panel ────────────────────────────────────────────── */}
+      <div className={`mb-3 p-2.5 rounded-lg text-xs space-y-1 ${speechSupported ? 'bg-bg-primary' : 'bg-orange-50'}`}>
+        <div className="font-medium text-text-secondary mb-1">朗读诊断</div>
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-text-secondary">
+          <span>speechSynthesis: {speechSupported ? '✅ 支持' : '❌ 不支持'}</span>
+          <span>voices: {speechDebug.voiceCount} 个</span>
+        </div>
+        <div className="text-text-tertiary">voice: {speechDebug.voiceName}</div>
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-text-secondary">
+          <span>最近朗读: {speechDebug.lastWord || '无'}</span>
+          <span>状态: {speechDebug.status}</span>
+        </div>
+        {speechDebug.error && (
+          <div className="text-danger font-medium">错误: {speechDebug.error}</div>
+        )}
+        {speechSupported && speechDebug.voiceCount === 0 && (
+          <div className="text-orange-500">⚠ 未检测到英语语音，请检查系统文字转语音设置</div>
+        )}
+        {speechSupported && !speechUnlocked && speechDebug.status === '未开始' && (
+          <div className="text-text-tertiary">→ 点击"测试发音"按钮，确认能听到声音后自动发音将启用</div>
+        )}
+      </div>
+
+      {/* Auto-speak status */}
+      <div className="flex justify-center items-center h-5 mb-2">
+        {speechSupported && autoSpeakEnabled && speechUnlocked ? (
+          <span className="text-xs text-success">🔊 自动发音：已开启</span>
+        ) : speechSupported && autoSpeakEnabled && !speechUnlocked ? (
+          <span className="text-xs text-text-tertiary">朗读确认后将自动切词发音</span>
         ) : !autoSpeakEnabled ? (
-          <span className="text-xs text-text-tertiary flex items-center gap-1">
-            <span>🔇</span><span>自动发音：已关闭</span>
-          </span>
+          <span className="text-xs text-text-tertiary">🔇 自动发音：已关闭（可在"我的"中开启）</span>
         ) : null}
       </div>
 
@@ -279,7 +359,6 @@ export default function LearnPage() {
         isFavorite={isFav}
         onToggleFavorite={handleFavorite}
         showProgress={`${index + 1} / ${queue.length}`}
-        onInteract={unlockSpeech}
         onSpeak={handleSpeak}
       />
 
