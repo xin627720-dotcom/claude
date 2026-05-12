@@ -21,10 +21,13 @@ import {
 import type { UserStats, MimoPlanSettings, MimoTargetMode, MimoIntensity } from '@/lib/types'
 
 export default function ProfilePage() {
-  const { user, syncStatus, triggerSync, signInWithEmail, signOut } = useAuth()
+  const { user, syncStatus, triggerSync, signInWithEmail, verifyOtp, signOut } = useAuth()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [email, setEmail] = useState('')
-  const [mailSent, setMailSent] = useState(false)
+  const [codeSent, setCodeSent] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [sending, setSending] = useState(false)
+  const [verifying, setVerifying] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [goalInput, setGoalInput] = useState('')
   const [clearConfirm, setClearConfirm] = useState(false)
@@ -51,14 +54,29 @@ export default function ProfilePage() {
     setAutoSpeakOn(next)
   }
 
-  const handleLogin = async () => {
+  const handleSendCode = async () => {
     setLoginError('')
+    setSending(true)
     const { error } = await signInWithEmail(email)
+    setSending(false)
     if (error) {
       setLoginError(error)
     } else {
-      setMailSent(true)
+      setCodeSent(true)
+      setOtp('')
     }
+  }
+
+  const handleVerifyOtp = async () => {
+    if (otp.length < 6) return
+    setLoginError('')
+    setVerifying(true)
+    const { error } = await verifyOtp(email, otp.trim())
+    setVerifying(false)
+    if (error) {
+      setLoginError(error)
+    }
+    // on success AuthContext's onAuthStateChange fires and sets user
   }
 
   const handleSaveGoal = () => {
@@ -134,30 +152,57 @@ export default function ProfilePage() {
             </button>
           </div>
         ) : isSupabaseConfigured() ? (
-          <div>
-            {mailSent ? (
-              <p className="text-sm text-text-secondary text-center py-2">
-                📧 魔法链接已发送到 {email}，请检查邮箱并点击链接登录
-              </p>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs text-text-secondary">输入邮箱，系统发送登录链接，安卓和 iPad 用同一邮箱即可同步</p>
+          <div className="space-y-3">
+            {!codeSent ? (
+              <>
+                <p className="text-xs text-text-secondary">输入邮箱，发送6位验证码，安卓和 iPad 用同一邮箱即可同步</p>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && email.includes('@') && handleSendCode()}
                   placeholder="your@email.com"
                   className="w-full rounded-lg px-4 py-3 text-sm bg-bg-primary border border-bg-tertiary outline-none focus:border-accent text-text-primary"
                 />
                 {loginError && <p className="text-xs text-danger">{loginError}</p>}
                 <button
-                  onClick={handleLogin}
-                  disabled={!email.includes('@')}
+                  onClick={handleSendCode}
+                  disabled={!email.includes('@') || sending}
                   className="w-full py-3 rounded-xl bg-accent text-white font-semibold text-sm disabled:opacity-40 active:scale-[0.97] transition-all"
                 >
-                  发送登录链接
+                  {sending ? '发送中…' : '发送验证码'}
                 </button>
-              </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-text-secondary">
+                  验证码已发送至 <strong>{email}</strong>，请输入收到的6位数字
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onKeyDown={(e) => e.key === 'Enter' && otp.length === 6 && handleVerifyOtp()}
+                  placeholder="123456"
+                  className="w-full rounded-lg px-4 py-3 text-sm bg-bg-primary border border-bg-tertiary outline-none focus:border-accent text-text-primary tracking-widest text-center text-xl font-bold"
+                />
+                {loginError && <p className="text-xs text-danger">{loginError}</p>}
+                <button
+                  onClick={handleVerifyOtp}
+                  disabled={otp.length < 6 || verifying}
+                  className="w-full py-3 rounded-xl bg-accent text-white font-semibold text-sm disabled:opacity-40 active:scale-[0.97] transition-all"
+                >
+                  {verifying ? '验证中…' : '验证登录'}
+                </button>
+                <button
+                  onClick={() => { setCodeSent(false); setOtp(''); setLoginError('') }}
+                  className="w-full text-xs text-text-tertiary text-center active:opacity-70"
+                >
+                  重新输入邮箱
+                </button>
+              </>
             )}
           </div>
         ) : (

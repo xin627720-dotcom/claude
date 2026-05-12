@@ -19,6 +19,7 @@ interface AuthContextType {
   loading: boolean
   syncStatus: SyncStatus
   signInWithEmail: (email: string) => Promise<{ error: string | null }>
+  verifyOtp: (email: string, token: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   triggerSync: () => Promise<void>
 }
@@ -78,6 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }
 
+  const verifyOtp = async (email: string, token: string) => {
+    if (!isSupabaseConfigured()) {
+      return { error: '未配置 Supabase，请先完成配置' }
+    }
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
+    return { error: error?.message ?? null }
+  }
+
   const signOut = async () => {
     if (!isSupabaseConfigured()) return
     await supabase.auth.signOut()
@@ -87,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, syncStatus, signInWithEmail, signOut, triggerSync }}>
+    <AuthContext.Provider value={{ user, session, loading, syncStatus, signInWithEmail, verifyOtp, signOut, triggerSync }}>
       {children}
     </AuthContext.Provider>
   )
