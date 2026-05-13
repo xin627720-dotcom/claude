@@ -15,7 +15,8 @@ import {
   buildLocalPlanCandidates,
   generateLocalFallbackPlan,
   validateAndCleanAiPlan,
-  INTENSITY_LIMITS,
+  getEffectiveLimits,
+  enforceTargetNewWordCount,
   todayStr,
 } from '@/lib/mimoPlan'
 import type { MimoDailyPlan } from '@/lib/types'
@@ -48,7 +49,9 @@ export default function MimoPlanCard() {
       const { target: dailyNewTarget, warning } = calculateDailyNewWordTarget(
         allWords.length - learnedWords,
         daysRemaining,
-        settings.dailyIntensity
+        settings.dailyIntensity,
+        settings.dailyNewWordsMode,
+        settings.dailyNewWords
       )
 
       const statsObj = {
@@ -60,8 +63,11 @@ export default function MimoPlanCard() {
         dailyNewTarget,
       }
 
-      const candidates = buildLocalPlanCandidates(pm, allWords, settings)
+      const candidates = buildLocalPlanCandidates(pm, allWords, settings, dailyNewTarget)
 
+      // Cap what we send to AI — AI doesn't need huge candidate lists, and sending
+      // hundreds of words wastes tokens. Local fallback uses the full dynamic pool.
+      const AI_CANDIDATE_CAP = 150
       let resultPlan: MimoDailyPlan | null = null
 
       // Try AI if enabled and not suppressed
@@ -77,7 +83,7 @@ export default function MimoPlanCard() {
             remainingWords,
             dailyNewTarget,
             intensity: settings.dailyIntensity,
-            candidateNewWords: candidates.candidateNewWords,
+            candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
             candidateReviewWords: candidates.candidateReviewWords,
             candidateWrongWords: candidates.candidateWrongWords,
             candidateFuzzyWords: candidates.candidateFuzzyWords,
@@ -91,12 +97,34 @@ export default function MimoPlanCard() {
             const raw = await resp.json()
             if (raw && !raw.error) {
               const validIds = new Set(allWords.map(w => w.id))
-              const limits = INTENSITY_LIMITS[settings.dailyIntensity]
+              const limits = getEffectiveLimits(settings, dailyNewTarget)
               const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
               if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
+                // Enforce the effective target for both auto and manual modes.
+                // Uses the full local candidate pool (not the AI-capped slice) to supplement.
+                const effectiveTarget = settings.dailyNewWordsMode === 'manual'
+                  ? settings.dailyNewWords
+                  : dailyNewTarget
+                const enforcedNewIds = enforceTargetNewWordCount(
+                  cleaned.newWordIds ?? [],
+                  effectiveTarget,
+                  candidates.candidateNewWords,
+                  settings.allowAiAdjust
+                )
+                const fallback = generateLocalFallbackPlan(settings, statsObj, candidates)
+                const realEstimatedMin = Math.max(
+                  fallback.estimatedMinutes,
+                  Math.round(
+                    enforcedNewIds.length * 1.5 +
+                    (cleaned.reviewWordIds?.length ?? fallback.reviewWordIds.length) * 0.5 +
+                    (cleaned.wrongWordIds?.length ?? fallback.wrongWordIds.length) * 1.0
+                  )
+                )
                 resultPlan = {
-                  ...generateLocalFallbackPlan(settings, statsObj, candidates),
+                  ...fallback,
                   ...cleaned,
+                  newWordIds: enforcedNewIds,
+                  estimatedMinutes: realEstimatedMin,
                   date: todayStr(),
                   targetDate: settings.targetDate,
                   daysRemaining,
@@ -268,10 +296,10 @@ export default function MimoPlanCard() {
           重新生成
         </button>
         <Link
-          href="/profile"
+          href="/profile#mimo-settings"
           className="px-3 py-2.5 rounded-lg bg-bg-tertiary text-text-secondary text-xs font-medium active:scale-95 transition-all"
         >
-          调整
+          调整计划
         </Link>
       </div>
     </div>
