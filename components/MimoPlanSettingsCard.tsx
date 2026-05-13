@@ -169,21 +169,31 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
                   candidates.candidateNewWords,
                   updated.allowAiAdjust
                 )
+                const fallback = generateLocalFallbackPlan(updated, statsObj, candidates)
+                const realEstimatedMin = Math.max(
+                  fallback.estimatedMinutes,
+                  Math.round(
+                    enforcedNewIds.length * 1.5 +
+                    (cleaned.reviewWordIds?.length ?? fallback.reviewWordIds.length) * 0.5 +
+                    (cleaned.wrongWordIds?.length ?? fallback.wrongWordIds.length) * 1.0
+                  )
+                )
                 resultPlan = {
-                  ...generateLocalFallbackPlan(updated, statsObj, candidates),
+                  ...fallback,
                   ...cleaned,
                   newWordIds: enforcedNewIds,
-                date: todayStr(),
-                targetDate: updated.targetDate,
-                daysRemaining,
-                totalWords: allWords.length,
-                learnedWords,
-                masteredWords,
-                remainingWords,
-                createdBy: 'mimo_ai',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              }
+                  estimatedMinutes: realEstimatedMin,
+                  date: todayStr(),
+                  targetDate: updated.targetDate,
+                  daysRemaining,
+                  totalWords: allWords.length,
+                  learnedWords,
+                  masteredWords,
+                  remainingWords,
+                  createdBy: 'mimo_ai',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }
             }
           }
         }

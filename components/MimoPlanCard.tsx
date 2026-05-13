@@ -111,10 +111,20 @@ export default function MimoPlanCard() {
                   candidates.candidateNewWords,
                   settings.allowAiAdjust
                 )
+                const fallback = generateLocalFallbackPlan(settings, statsObj, candidates)
+                const realEstimatedMin = Math.max(
+                  fallback.estimatedMinutes,
+                  Math.round(
+                    enforcedNewIds.length * 1.5 +
+                    (cleaned.reviewWordIds?.length ?? fallback.reviewWordIds.length) * 0.5 +
+                    (cleaned.wrongWordIds?.length ?? fallback.wrongWordIds.length) * 1.0
+                  )
+                )
                 resultPlan = {
-                  ...generateLocalFallbackPlan(settings, statsObj, candidates),
+                  ...fallback,
                   ...cleaned,
                   newWordIds: enforcedNewIds,
+                  estimatedMinutes: realEstimatedMin,
                   date: todayStr(),
                   targetDate: settings.targetDate,
                   daysRemaining,
