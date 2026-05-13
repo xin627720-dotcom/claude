@@ -394,9 +394,9 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
   if (seenWords === 0) {
     mainProblem = '还没有开始学习，先完成一次学习任务，就能看到具体诊断。'
   } else if (wrongWords > 10) {
-    mainProblem = `你目前有 ${wrongWords} 个错词积压，错词量偏多，建议今天优先清理错词，而不是继续增加新词。`
+    mainProblem = `你目前有 ${wrongWords} 个错词，错词数量偏多，建议今天优先复习错词，而不是继续增加新词。`
   } else if (fuzzyWords > 20) {
-    mainProblem = `你目前有 ${fuzzyWords} 个模糊词，说明识别不稳定。建议降低每日新词量，加强已接触词的复习。`
+    mainProblem = `你目前有 ${fuzzyWords} 个模糊词，模糊词数量偏多，建议降低每日新词量，加强已接触词的复习。`
   } else if (masteryRate < 30 && seenWords > 20) {
     mainProblem = `已接触 ${seenWords} 个词，但掌握率只有 ${masteryRate}%，说明新词学得多但巩固不足，建议减少新词，多复习。`
   } else if (masteredWords / Math.max(1, seenWords) < 0.5 && seenWords > 10) {
@@ -410,7 +410,7 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
   if (seenWords === 0) {
     todayConclusion = '暂无足够学习数据，完成一次学习或测验后会生成更具体的诊断。'
   } else if (wrongWords > 10 || fuzzyWords > 15) {
-    todayConclusion = `今天的主要问题是错词（${wrongWords}个）和模糊词（${fuzzyWords}个）积压，新词量不宜继续增加。`
+    todayConclusion = `今天的主要问题是错词（${wrongWords}个）和模糊词（${fuzzyWords}个）数量偏多，新词量不宜继续增加。`
   } else if (masteryRate < 30) {
     todayConclusion = `今天应以复习为主：已接触 ${seenWords} 词但掌握率仅 ${masteryRate}%，先把基础打牢。`
   } else {
@@ -454,7 +454,7 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
   // Daily new word adjustment recommendation
   let dailyNewWordAdjustment = ''
   if (wrongWords > 10 || fuzzyWords > 20) {
-    dailyNewWordAdjustment = `建议把每日新词从 ${dailyNewWords} 降到 ${suggestedNewWords}，因为错词（${wrongWords}个）和模糊词（${fuzzyWords}个）合计偏多，先清理积压再扩展。`
+    dailyNewWordAdjustment = `建议把每日新词从 ${dailyNewWords} 降到 ${suggestedNewWords}，因为错词（${wrongWords}个）和模糊词（${fuzzyWords}个）合计偏多，建议先复习错词和模糊词，再逐步增加新词量。`
   } else if (masteryRate < 30 && seenWords > 20) {
     dailyNewWordAdjustment = `建议把每日新词从 ${dailyNewWords} 降到 ${suggestedNewWords}，当前掌握率（${masteryRate}%）偏低，需要加强已学词复习。`
   } else {
@@ -539,18 +539,14 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
 }
 
 const FORBIDDEN_ENCOURAGEMENT_WORDS = [
-  '库存', '进货', '清仓', '爆仓', '冲货', '清库', '收割', '打仗', '鸡血',
+  '清掉', '清理', '积压', '库存', '进货', '清仓', '爆仓', '冲货', '清库', '收割', '打仗', '鸡血',
   '冲刺清', '突击', '战场', '备战', '冲关', '刷题机器', '拼命',
 ]
 
 function safeEncouragementByData(analysis: LocalAnalysisResult): string {
-  if (analysis.seenWords === 0) return '完成第一次学习后，诊断会更具体。'
-  if (analysis.wrongWords > 5) return '先把错词重认一遍，薄弱词清掉后学新词会更快。'
-  if (analysis.fuzzyWords > 10) return '模糊词多说明需要加强巩固，稳住已学词再扩展更有效。'
-  if (analysis.weakWords.length > 0) {
-    const top = analysis.weakWords[0]
-    return `把 ${top.word} 这类高频词吃透，阅读题会更稳。`
-  }
+  if (analysis.wrongWords > 5) return '先复习错词和模糊词，再学新词会更稳。'
+  if (analysis.fuzzyWords > 10) return '模糊词偏多，先巩固已学词会更稳。'
+  if (analysis.weakWords.length > 0) return '把高频薄弱词复习透，阅读题会更稳。'
   return '保持每天复习，词汇记忆会越来越稳固。'
 }
 
