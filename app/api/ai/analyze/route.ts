@@ -11,46 +11,116 @@ function getApiConfig() {
 }
 
 function buildSystemPrompt(): string {
-  return `你是一位专业的英语学习顾问，擅长分析高中生的词汇学习数据并给出个性化建议。
-请根据用户提供的学习数据，用中文给出专业的学习诊断报告。
-你的分析应该具体、鼓励性、可操作，避免泛泛而谈。
+  return `你是一位专业的英语词汇学习顾问，擅长基于真实学习数据给出具体、可操作的诊断建议。
+
+重要要求：
+1. 诊断必须基于用户提供的真实数据，不能泛泛而谈
+2. 必须列出真实的具体单词，不能只说"薄弱词汇"
+3. 给出的数量建议必须基于数据计算，不能随意写
+4. 鼓励话只能放最后，且必须简短（一句话）
+5. 不要说"你已迈出扎实第一步"、"建议加强复习"、"继续保持"等空话
 
 请严格按照以下 JSON 格式返回，不要有任何额外文字：
 {
-  "summary": "2-3句总体评价",
-  "overallLevel": "入门|基础|进阶|熟练|精通",
-  "memoryCurveInsight": "1-2句关于记忆曲线的洞察",
-  "weakWordAnalysis": [
-    {"word": "单词", "issue": "问题描述", "tip": "记忆建议"}
+  "todayConclusion": "一句话直接说今天最主要的问题，例如：今天主要问题是错词和模糊词积压，不宜继续增加新词",
+  "mainProblem": "2-3句分析当前最大问题，必须提到具体数字",
+  "topReviewWords": [
+    {
+      "word": "具体单词（从weakWords里取）",
+      "meaning": "中文释义",
+      "reason": "具体原因，如：错3次，最近一次仍答错",
+      "wrongCount": 3,
+      "fuzzyCount": 1,
+      "status": "模糊"
+    }
   ],
-  "todayPlan": ["今日计划第1条", "今日计划第2条", "今日计划第3条"],
-  "practiceSuggestions": ["练习建议1", "练习建议2", "练习建议3"],
-  "encouragement": "1句个性化鼓励"
-}`
+  "confusingWordsList": [
+    {
+      "word": "单词A",
+      "confusingWith": "单词B",
+      "reason": "两者容易混淆的具体原因"
+    }
+  ],
+  "tomorrowPlan": {
+    "newWords": 20,
+    "reviewWords": 30,
+    "wrongWords": 5,
+    "sentenceMeaningWords": 10
+  },
+  "dailyNewWordAdjustment": "基于数据给出是否调整每日新词量的建议，必须说明理由和具体数字",
+  "summary": "2-3句基于数据的总体评价，必须包含具体数字",
+  "overallLevel": "入门|基础|进阶|熟练|精通",
+  "memoryCurveInsight": "1-2句关于记忆状态的具体洞察",
+  "weakWordAnalysis": [
+    {"word": "具体单词", "issue": "具体问题描述，如：错了3次，模糊2次", "tip": "具体记忆方法"}
+  ],
+  "todayPlan": ["今日计划第1条（含具体数字）", "今日计划第2条"],
+  "practiceSuggestions": ["具体练习建议，含单词名", "具体练习建议2"],
+  "encouragement": "一句简短鼓励，不超过20字"
+}
+
+topReviewWords 必须从 weakWords 数据中取最弱的5个真实单词。
+confusingWordsList 如果数据中有confusing words则列出，否则返回空数组 []。
+tomorrowPlan 中的数字必须根据用户数据合理计算：
+  - 如果 wrongWords > 10，newWords 不超过当前 dailyNewWords 的50%
+  - 如果 fuzzyWords > 20，newWords 不超过当前 dailyNewWords 的70%
+  - reviewWords 不超过 dailyReviewLimit
+weakWordAnalysis 分析最弱的5个词，每条 tip 要具体（词根、联想、谐音等）。`
 }
 
 function buildUserPrompt(data: AiAnalyzeRequest): string {
-  const masteredPct = data.totalWords > 0
-    ? Math.round((data.masteredWords / data.totalWords) * 100)
+  const s = data.stats
+  const masteredPct = s.touchedWords > 0
+    ? Math.round((s.masteredWords / s.touchedWords) * 100)
     : 0
 
   const weakWordsSummary = data.weakWords.slice(0, 20).map((w) =>
-    `- ${w.word}（${w.meaning}）: 错${w.wrongCount}次 模糊${w.fuzzyCount}次 正确${w.correctCount}次 弱点分${w.weakScore}` +
-    (w.exampleEn ? `\n  例：${w.exampleEn}` : '')
+    `- ${w.word}（${w.meaning}）[${w.status}]: 错${w.wrongCount}次 模糊${w.fuzzyCount}次 正确${w.correctCount}次 弱点分${w.weakScore}` +
+    (w.reason ? ` | ${w.reason}` : '')
   ).join('\n')
 
-  return `学习数据摘要：
-- 词库总词数：${data.totalWords}
-- 已学词数：${data.seenWords}（${masteredPct}% 已掌握）
-- 已掌握：${data.masteredWords} | 学习中：${data.learningWords} | 模糊：${data.fuzzyWords}
-- 逾期待复习：${data.overdueCount}
-- 连续学习天数：${data.streakDays}
-- 测验正确率：${data.quizAccuracy !== null ? data.quizAccuracy + '%' : '暂无数据'}
+  const highFreqSummary = data.highFreqUnmasteredWords.slice(0, 10).map((w) =>
+    `- ${w.word}（${w.meaning}）[${w.status}]: 错${w.wrongCount}次 模糊${w.fuzzyCount}次`
+  ).join('\n')
 
-薄弱词汇（按弱点分排序，最多20个）：
+  return `===== 学习统计数据 =====
+- 词库总词数：${s.totalWords}
+- 已接触词数：${s.touchedWords}（有学习记录）
+- 已掌握：${s.masteredWords} 个（已接触中掌握率 ${masteredPct}%）
+- 认识：${s.knownWords} 个
+- 模糊：${s.fuzzyWords} 个
+- 错词：${s.wrongWords} 个
+- 未接触：${s.unseenWords} 个
+- 逾期待复习：${s.overdueCount} 个
+- 测验正确率：${s.quizAccuracy !== null ? s.quizAccuracy + '%' : '暂无数据'}
+- 今日完成率：${s.todayCompletionRate !== null ? s.todayCompletionRate + '%' : '暂无数据'}
+- 连续学习天数：${s.streakDays} 天
+
+===== 今日计划 =====
+- 新词：${data.todayPlan.newWords} 个
+- 复习：${data.todayPlan.reviewWords} 个
+- 错词：${data.todayPlan.wrongWords} 个
+- 模糊词：${data.todayPlan.fuzzyWords} 个
+- 句中识义：${data.todayPlan.sentenceMeaningWords} 题
+- 今日已完成任务：${data.todayPlan.completedTasks} / ${data.todayPlan.totalTasks}
+
+===== 当前计划设置 =====
+- 每日新词模式：${data.planSettings.dailyNewWordsMode === 'auto' ? '自动' : '手动'}
+- 每日新词目标：${data.planSettings.dailyNewWords} 个
+- 每日复习上限：${data.planSettings.dailyReviewLimit} 个
+- 学习强度：${data.planSettings.intensity}
+
+===== 薄弱词汇（按弱点分排序，最多20个）=====
 ${weakWordsSummary || '暂无薄弱词汇'}
 
-请给出学习诊断报告。weakWordAnalysis 只分析最弱的5个词，每条 tip 要具体（如词根、谐音、联想等记忆法）。`
+===== 高频未掌握词（最多10个）=====
+${highFreqSummary || '暂无高频未掌握词，或高频词已全部掌握'}
+
+===== 诊断要求 =====
+1. topReviewWords 必须从上面"薄弱词汇"列表里取真实单词（最多5个），不能编造
+2. tomorrowPlan 数字必须基于上面数据合理计算
+3. 如果已接触词数为0，todayConclusion 写"暂无足够学习数据，完成一次学习或测验后会生成更具体的诊断"
+4. 不要说空话，每条建议都要有依据`
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -84,8 +154,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           { role: 'system', content: buildSystemPrompt() },
           { role: 'user', content: buildUserPrompt(body) },
         ],
-        temperature: 0.7,
-        max_tokens: 1500,
+        temperature: 0.4,
+        max_tokens: 2000,
         response_format: { type: 'json_object' },
       }),
     })

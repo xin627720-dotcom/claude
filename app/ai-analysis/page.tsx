@@ -8,6 +8,7 @@ import {
   saveCachedAiAnalysis,
   isCacheStale,
   clearAiAnalysisCache,
+  generateLocalFallback,
 } from '@/lib/aiAnalysis'
 import type { LocalAnalysisResult, AiAnalysisResult } from '@/lib/aiTypes'
 import AiAnalysisCard from '@/components/AiAnalysisCard'
@@ -24,6 +25,7 @@ export default function AiAnalysisPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
+  const [usingFallback, setUsingFallback] = useState(false)
 
   // Load local analysis and check AI availability
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function AiAnalysisPage() {
     if (!data) return
     setLoading(true)
     setError(null)
+    setUsingFallback(false)
 
     try {
       const requestBody = buildAiRequest(data)
@@ -60,7 +63,12 @@ export default function AiAnalysisPage() {
       })
 
       if (res.status === 503) {
+        // AI not configured — use local fallback
         setAiEnabled(false)
+        const fallback = generateLocalFallback(data)
+        setAiResult(fallback)
+        setCachedAt(new Date().toISOString())
+        setUsingFallback(true)
         setLoading(false)
         return
       }
@@ -75,8 +83,14 @@ export default function AiAnalysisPage() {
       setAiResult(result)
       setCachedAt(new Date().toISOString())
       setAiEnabled(true)
+      setUsingFallback(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'AI 分析失败，请稍后重试')
+      // On any failure, show local fallback instead of empty screen
+      const fallback = generateLocalFallback(data)
+      setAiResult(fallback)
+      setCachedAt(new Date().toISOString())
+      setUsingFallback(true)
+      setError(e instanceof Error ? e.message : 'AI 分析失败，显示本地诊断')
     } finally {
       setLoading(false)
     }
@@ -87,6 +101,7 @@ export default function AiAnalysisPage() {
     setAiResult(null)
     setCachedAt(null)
     setError(null)
+    setUsingFallback(false)
     const fresh = computeLocalAnalysis()
     setLocalData(fresh)
     triggerAiAnalysis(fresh)
@@ -104,7 +119,7 @@ export default function AiAnalysisPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-text-primary">AI 学习诊断</h1>
-          <p className="text-xs text-text-secondary mt-0.5">智能分析你的学习数据</p>
+          <p className="text-xs text-text-secondary mt-0.5">基于真实学习数据的具体建议</p>
         </div>
         <button
           onClick={handleReanalyze}
@@ -118,7 +133,21 @@ export default function AiAnalysisPage() {
       {/* AI status notice */}
       {aiEnabled === false && (
         <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-3 mb-4 text-sm text-yellow-800">
-          AI 诊断未开启。你仍然可以查看本地学习分析。
+          AI 诊断未开启，显示基于本地数据的诊断建议。
+        </div>
+      )}
+
+      {/* Fallback notice */}
+      {usingFallback && aiEnabled !== false && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 text-sm text-blue-700">
+          AI 暂时不可用，已切换为本地数据诊断（基于真实学习数据生成）。
+        </div>
+      )}
+
+      {/* Error (non-blocking since we show fallback) */}
+      {error && !usingFallback && (
+        <div className="bg-red-50 border border-red-100 rounded-xl p-3 mb-4 text-sm text-danger">
+          {error}
         </div>
       )}
 
@@ -126,14 +155,7 @@ export default function AiAnalysisPage() {
       {loading && !aiResult && (
         <div className="bg-white rounded-xl shadow-card p-6 text-center mb-4">
           <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-text-secondary">AI 正在分析你的学习数据…</p>
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="bg-red-50 border border-red-100 rounded-xl p-3 mb-4 text-sm text-danger">
-          {error}
+          <p className="text-sm text-text-secondary">正在分析学习数据…</p>
         </div>
       )}
 
@@ -160,27 +182,33 @@ export default function AiAnalysisPage() {
           {tab === 'overview' && (
             <>
               {aiResult && cachedAt ? (
-                <AiAnalysisCard result={aiResult} cachedAt={cachedAt} />
+                <AiAnalysisCard result={aiResult} cachedAt={cachedAt} localData={localData} />
               ) : (
+                /* No AI result yet — show local data stats while loading */
                 <div className="space-y-3">
-                  {/* Local overview when no AI */}
                   <div className="bg-white rounded-xl shadow-card p-4">
-                    <h2 className="font-semibold text-text-primary text-sm mb-3">本地学习摘要</h2>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: '已学词数', value: localData.seenWords, color: 'text-accent' },
-                        { label: '已掌握', value: localData.masteredWords, color: 'text-success' },
-                        { label: '学习中', value: localData.learningWords, color: 'text-blue-500' },
-                        { label: '模糊', value: localData.fuzzyWords, color: 'text-warning' },
-                        { label: '错词', value: localData.wrongWords, color: 'text-danger' },
-                        { label: '未学', value: localData.unseenWords, color: 'text-text-tertiary' },
-                      ].map((item) => (
-                        <div key={item.label} className="text-center py-2 bg-gray-50 rounded-lg">
-                          <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>
-                          <p className="text-xs text-text-tertiary mt-0.5">{item.label}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <h2 className="font-semibold text-text-primary text-sm mb-3">当前学习数据</h2>
+                    {localData.seenWords === 0 ? (
+                      <p className="text-sm text-text-secondary text-center py-4">
+                        暂无足够学习数据，完成一次学习或测验后会生成更具体的诊断。
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: '已接触', value: localData.seenWords, color: 'text-accent' },
+                          { label: '已掌握', value: localData.masteredWords, color: 'text-success' },
+                          { label: '认识', value: localData.knownWords, color: 'text-blue-500' },
+                          { label: '模糊', value: localData.fuzzyWords, color: 'text-warning' },
+                          { label: '错词', value: localData.wrongWords, color: 'text-danger' },
+                          { label: '未学', value: localData.unseenWords, color: 'text-text-tertiary' },
+                        ].map((item) => (
+                          <div key={item.label} className="text-center py-2 bg-gray-50 rounded-lg">
+                            <p className={`text-lg font-bold ${item.color}`}>{item.value}</p>
+                            <p className="text-[10px] text-text-tertiary mt-0.5">{item.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
