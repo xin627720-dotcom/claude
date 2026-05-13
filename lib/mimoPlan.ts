@@ -336,6 +336,18 @@ export function generateLocalFallbackPlan(
     allVocabWords
   )
 
+  // confusing words: only if vocab data available (has confusingWords field)
+  const confusingTarget = getConfusingWordTargetCount(newIds.length)
+  const confusingIds = allVocabWords
+    ? buildConfusingWordIds(
+        candidates.candidateNewWords,
+        candidates.candidateWrongWords,
+        candidates.candidateFuzzyWords,
+        allVocabWords,
+        confusingTarget
+      )
+    : []
+
   const estimatedMin = Math.round(
     (newIds.length * 1.5 + reviewIds.length * 0.5 + wrongIds.length * 1.0 + sentenceIds.length * 0.3)
   )
@@ -359,7 +371,7 @@ export function generateLocalFallbackPlan(
     wrongWordIds: wrongIds,
     fuzzyWordIds: fuzzyIds,
     sentenceMeaningWordIds: sentenceIds,
-    confusingWordIds: [],
+    confusingWordIds: confusingIds,
     estimatedMinutes: Math.max(limits.minMin, estimatedMin),
     priorityReason: `${intensityLabel}模式：优先高频词 + 错词，以阅读识义为主`,
     motivationalMessage: `距目标还剩 ${stats.daysRemaining} 天，剩余 ${stats.remainingWords} 词，继续加油！`,
@@ -567,18 +579,111 @@ export function enforceWrongFuzzyWordIds(
   const filteredWrong = aiWrongIds.filter(id => validIds.has(id) && candidateWrongIds.includes(id))
   const filteredFuzzy = aiFuzzyIds.filter(id => validIds.has(id) && candidateFuzzyIds.includes(id))
 
-  // Supplement from candidates if AI returned too few
+  // Supplement from candidates if AI returned too few — guard against negative slice
   const wrongSet = new Set(filteredWrong)
+  const needWrong = Math.max(0, wrongTarget - filteredWrong.length)
   const extraWrong = candidateWrongIds
     .filter(id => !wrongSet.has(id))
-    .slice(0, wrongTarget - filteredWrong.length)
+    .slice(0, needWrong)
   const wrongWordIds = [...filteredWrong, ...extraWrong].slice(0, wrongTarget)
 
   const fuzzySet = new Set([...filteredFuzzy, ...wrongWordIds])
+  const needFuzzy = Math.max(0, fuzzyTarget - filteredFuzzy.length)
   const extraFuzzy = candidateFuzzyIds
     .filter(id => !fuzzySet.has(id))
-    .slice(0, fuzzyTarget - filteredFuzzy.length)
+    .slice(0, needFuzzy)
   const fuzzyWordIds = [...filteredFuzzy, ...extraFuzzy].slice(0, fuzzyTarget)
 
   return { wrongWordIds, fuzzyWordIds }
+}
+
+// ── Deduplicate reviewWordIds against new/wrong/fuzzy ────────────────────────
+// The 4 core learn tasks (new/review/wrong/fuzzy) should not share word IDs.
+export function deduplicateReviewWordIds(
+  reviewIds: string[],
+  newIds: string[],
+  wrongIds: string[],
+  fuzzyIds: string[]
+): string[] {
+  const usedIds = new Set([...newIds, ...wrongIds, ...fuzzyIds])
+  return reviewIds.filter(id => !usedIds.has(id))
+}
+
+// ── Confusing-word target count ───────────────────────────────────────────────
+export function getConfusingWordTargetCount(newWordCount: number): number {
+  if (newWordCount <= 50) return 5
+  if (newWordCount <= 150) return 10
+  if (newWordCount <= 300) return 15
+  return 20
+}
+
+// ── Build confusing word IDs from vocab with real confusingWords data ─────────
+// Prioritizes new words and wrong words that have confusingWords entries.
+export function buildConfusingWordIds(
+  candidateNewWords: CandidateWord[],
+  candidateWrongWords: CandidateWord[],
+  candidateFuzzyWords: CandidateWord[],
+  allVocabWords: VocabWord[],
+  target: number
+): string[] {
+  if (target <= 0 || allVocabWords.length === 0) return []
+
+  const vocabMap = new Map<string, VocabWord>()
+  for (const w of allVocabWords) vocabMap.set(w.id, w)
+
+  const hasConfusingWords = (id: string): boolean => {
+    const v = vocabMap.get(id)
+    return (v?.confusingWords?.length ?? 0) > 0
+  }
+
+  const picked = new Set<string>()
+
+  // Tier 1: new words that have confusingWords entries
+  for (const w of candidateNewWords) {
+    if (picked.size >= target) break
+    if (hasConfusingWords(w.id)) picked.add(w.id)
+  }
+
+  // Tier 2: wrong words with confusingWords
+  for (const w of candidateWrongWords) {
+    if (picked.size >= target) break
+    if (!picked.has(w.id) && hasConfusingWords(w.id)) picked.add(w.id)
+  }
+
+  // Tier 3: fuzzy words with confusingWords
+  for (const w of candidateFuzzyWords) {
+    if (picked.size >= target) break
+    if (!picked.has(w.id) && hasConfusingWords(w.id)) picked.add(w.id)
+  }
+
+  return Array.from(picked).slice(0, target)
+}
+
+// ── Enforce confusingWordIds (AI path) ────────────────────────────────────────
+export function enforceConfusingWordIds(
+  aiIds: string[],
+  target: number,
+  candidateNewWords: CandidateWord[],
+  candidateWrongWords: CandidateWord[],
+  candidateFuzzyWords: CandidateWord[],
+  validIds: Set<string>,
+  allVocabWords: VocabWord[]
+): string[] {
+  if (target <= 0) return []
+
+  // Filter AI IDs to valid vocab entries only
+  const filtered = aiIds.filter(id => validIds.has(id)).slice(0, target)
+  if (filtered.length >= target) return filtered
+
+  // Supplement with local confusing-word candidates
+  const localIds = buildConfusingWordIds(
+    candidateNewWords,
+    candidateWrongWords,
+    candidateFuzzyWords,
+    allVocabWords,
+    target
+  )
+  const existing = new Set(filtered)
+  const extra = localIds.filter(id => !existing.has(id)).slice(0, target - filtered.length)
+  return [...filtered, ...extra].slice(0, target)
 }

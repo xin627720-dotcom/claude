@@ -182,6 +182,11 @@ export default function QuizPage() {
         return
       }
 
+      // Clear stale session before creating a fresh one
+      if (existing && !sessionIsValid) {
+        clearLearningSession(urlMode)
+      }
+
       // No valid session — create new session from plan word IDs (no slice!)
       const q = planWordIds
       const now = new Date().toISOString()

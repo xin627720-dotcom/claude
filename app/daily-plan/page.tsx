@@ -17,7 +17,10 @@ import {
   enforceTargetNewWordCount,
   enforceWrongFuzzyWordIds,
   enforceSentenceMeaningWordIds,
+  enforceConfusingWordIds,
   getSentenceMeaningTargetCount,
+  getConfusingWordTargetCount,
+  deduplicateReviewWordIds,
   todayStr,
 } from '@/lib/mimoPlan'
 import { getWordById } from '@/lib/vocab'
@@ -219,6 +222,8 @@ async function generateTodayPlan(): Promise<MimoDailyPlan> {
         learnedWords,
         masteredWords,
         remainingWords,
+        remainingUnseenWords,
+        remainingUnmasteredWords: remainingWords,
         dailyNewTarget,
         intensity: settings.dailyIntensity,
         candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
@@ -257,6 +262,14 @@ async function generateTodayPlan(): Promise<MimoDailyPlan> {
               validIds
             )
 
+            // Deduplicate review: must not overlap with new/wrong/fuzzy
+            const deduplicatedReviewIds = deduplicateReviewWordIds(
+              cleaned.reviewWordIds ?? [],
+              enforcedNewIds,
+              wrongWordIds,
+              fuzzyWordIds
+            )
+
             // Enforce sentence meaning count dynamically
             const sentenceTarget = getSentenceMeaningTargetCount(enforcedNewIds.length)
             const sentenceMeaningWordIds = enforceSentenceMeaningWordIds(
@@ -264,6 +277,18 @@ async function generateTodayPlan(): Promise<MimoDailyPlan> {
               sentenceTarget,
               candidates.candidateNewWords,
               candidates.candidateWrongWords,
+              validIds,
+              allWords
+            )
+
+            // Enforce confusing words from real vocab data
+            const confusingTarget = getConfusingWordTargetCount(enforcedNewIds.length)
+            const confusingWordIds = enforceConfusingWordIds(
+              cleaned.confusingWordIds ?? [],
+              confusingTarget,
+              candidates.candidateNewWords,
+              candidates.candidateWrongWords,
+              candidates.candidateFuzzyWords,
               validIds,
               allWords
             )
@@ -278,25 +303,27 @@ async function generateTodayPlan(): Promise<MimoDailyPlan> {
                 sentenceMeaningWordIds.length * 0.3
               )
             )
-            resultPlan = {
-              ...fallback,
-              ...cleaned,
-              newWordIds: enforcedNewIds,
-              wrongWordIds,
-              fuzzyWordIds,
-              sentenceMeaningWordIds,
-              estimatedMinutes: realEstimatedMin,
-              date: todayStr(),
-              targetDate: settings.targetDate,
-              daysRemaining,
-              totalWords: allWords.length,
-              learnedWords,
-              masteredWords,
-              remainingWords,
-              createdBy: 'mimo_ai',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            }
+                resultPlan = {
+                  ...fallback,
+                  ...cleaned,
+                  newWordIds: enforcedNewIds,
+                  reviewWordIds: deduplicatedReviewIds,
+                  wrongWordIds,
+                  fuzzyWordIds,
+                  sentenceMeaningWordIds,
+                  confusingWordIds,
+                  estimatedMinutes: realEstimatedMin,
+                  date: todayStr(),
+                  targetDate: settings.targetDate,
+                  daysRemaining,
+                  totalWords: allWords.length,
+                  learnedWords,
+                  masteredWords,
+                  remainingWords,
+                  createdBy: 'mimo_ai',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }
           }
         }
       }

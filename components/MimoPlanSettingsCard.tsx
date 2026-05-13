@@ -20,7 +20,10 @@ import {
   enforceTargetNewWordCount,
   enforceWrongFuzzyWordIds,
   enforceSentenceMeaningWordIds,
+  enforceConfusingWordIds,
   getSentenceMeaningTargetCount,
+  getConfusingWordTargetCount,
+  deduplicateReviewWordIds,
   todayStr,
   addDays,
 } from '@/lib/mimoPlan'
@@ -119,7 +122,7 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
     try {
       const store = loadStore()
       const pm = store.wordProgress
-      const { learnedWords, masteredWords, remainingWords, remainingUnseenWords } = calculateLearningStats(allWords.length, pm)
+      const { learnedWords, masteredWords, remainingWords, remainingUnseenWords, remainingUnmasteredWords } = calculateLearningStats(allWords.length, pm)
       const daysRemaining = calculateDaysRemaining(updated.targetDate)
       const { target: dailyNewTarget } = calculateDailyNewWordTarget(
         remainingUnseenWords,
@@ -150,6 +153,8 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
           learnedWords,
           masteredWords,
           remainingWords,
+          remainingUnseenWords,
+          remainingUnmasteredWords,
           dailyNewTarget,
           intensity: updated.dailyIntensity,
           candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
@@ -187,6 +192,14 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
                   validIds
                 )
 
+                // Deduplicate review: must not overlap with new/wrong/fuzzy
+                const deduplicatedReviewIds = deduplicateReviewWordIds(
+                  cleaned.reviewWordIds ?? [],
+                  enforcedNewIds,
+                  wrongWordIds,
+                  fuzzyWordIds
+                )
+
                 const sentenceTarget = getSentenceMeaningTargetCount(enforcedNewIds.length)
                 const sentenceMeaningWordIds = enforceSentenceMeaningWordIds(
                   cleaned.sentenceMeaningWordIds ?? [],
@@ -197,12 +210,23 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
                   allWords
                 )
 
+                const confusingTarget = getConfusingWordTargetCount(enforcedNewIds.length)
+                const confusingWordIds = enforceConfusingWordIds(
+                  cleaned.confusingWordIds ?? [],
+                  confusingTarget,
+                  candidates.candidateNewWords,
+                  candidates.candidateWrongWords,
+                  candidates.candidateFuzzyWords,
+                  validIds,
+                  allWords
+                )
+
                 const fallback = generateLocalFallbackPlan(updated, statsObj, candidates, allWords)
                 const realEstimatedMin = Math.max(
                   fallback.estimatedMinutes,
                   Math.round(
                     enforcedNewIds.length * 1.5 +
-                    (cleaned.reviewWordIds?.length ?? fallback.reviewWordIds.length) * 0.5 +
+                    deduplicatedReviewIds.length * 0.5 +
                     wrongWordIds.length * 1.0 +
                     sentenceMeaningWordIds.length * 0.3
                   )
@@ -211,9 +235,11 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
                   ...fallback,
                   ...cleaned,
                   newWordIds: enforcedNewIds,
+                  reviewWordIds: deduplicatedReviewIds,
                   wrongWordIds,
                   fuzzyWordIds,
                   sentenceMeaningWordIds,
+                  confusingWordIds,
                   estimatedMinutes: realEstimatedMin,
                   date: todayStr(),
                   targetDate: updated.targetDate,

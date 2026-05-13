@@ -123,7 +123,10 @@ export default function LearnPage() {
           q = session.wordIds
           startIndex = session.currentIndex
         } else {
-          // Start fresh session (plan may have changed or no prior session)
+          // Clear stale session (plan regenerated or first visit) before creating fresh one
+          if (session && !sessionMatchesPlan) {
+            clearLearningSession(urlMode)
+          }
           if (q.length > 0) {
             saveLearningSession({
               date: today,

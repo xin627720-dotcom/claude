@@ -67,9 +67,15 @@ export async function POST(req: NextRequest) {
 function buildUserPrompt(body: Record<string, unknown>): string {
   const {
     date, targetDate, daysRemaining, totalWords, learnedWords, masteredWords,
-    remainingWords, dailyNewTarget, intensity,
+    remainingUnseenWords, remainingUnmasteredWords,
+    remainingWords,  // legacy field — kept for backward compat
+    dailyNewTarget, intensity,
     candidateNewWords, candidateReviewWords, candidateWrongWords, candidateFuzzyWords,
   } = body
+
+  // Prefer the explicit fields; fall back to legacy remainingWords if not provided
+  const unseenDisplay = remainingUnseenWords ?? remainingWords ?? '?'
+  const unmasteredDisplay = remainingUnmasteredWords ?? remainingWords ?? '?'
 
   const fmt = (words: unknown) =>
     Array.isArray(words)
@@ -81,11 +87,15 @@ function buildUserPrompt(body: Record<string, unknown>): string {
   return `今日日期：${date}
 目标完成日期：${targetDate ?? '未设定'}
 剩余天数：${daysRemaining}
-词库总数：${totalWords} | 已接触：${learnedWords} | 已掌握：${masteredWords} | 剩余未学：${remainingWords}
-每日新词建议：${dailyNewTarget}
+词库总数：${totalWords} | 已接触：${learnedWords} | 已掌握：${masteredWords}
+剩余未接触（从未学过）：${unseenDisplay}
+剩余未掌握（含学习中/模糊）：${unmasteredDisplay}
+每日新词建议（按未接触词 / 剩余天数计算）：${dailyNewTarget}
 学习强度：${intensity}
 
-候选新词（未学，高频优先，格式 id|单词|意思|考频|状态|错误/模糊次数）：
+【重要】新词候选是"从未接触过"的词，newWordIds 必须从候选新词 id 里选，数量尽量接近 dailyNewTarget。
+
+候选新词（未接触，高频优先，格式 id|单词|意思|考频|状态|错误/模糊次数）：
 ${fmt(candidateNewWords)}
 
 候选复习词（到期，格式同上）：
