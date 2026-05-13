@@ -343,7 +343,7 @@ export function generateLocalFallbackPlan(
     fuzzyWordIds: fuzzyIds,
     sentenceMeaningWordIds: sentenceIds,
     confusingWordIds: [],
-    estimatedMinutes: Math.max(limits.minMin, Math.min(limits.maxMin, estimatedMin)),
+    estimatedMinutes: Math.max(limits.minMin, estimatedMin),
     priorityReason: `${intensityLabel}模式：优先高频词 + 错词，以阅读识义为主`,
     motivationalMessage: `距目标还剩 ${stats.daysRemaining} 天，剩余 ${stats.remainingWords} 词，继续加油！`,
     createdBy: 'local_fallback',
@@ -352,36 +352,52 @@ export function generateLocalFallbackPlan(
   }
 }
 
-// ── Enforce manual new-word count when allowAiAdjust is off ──────────────────
-// If the user set manual mode AND allowAiAdjust===false, the AI result's
-// newWordIds must be exactly dailyNewWords items (trim if too many, supplement
-// from candidateNewWords if too few).
+// ── Enforce new-word count target after merging AI result ─────────────────────
+// Used for both auto and manual modes.
+//   targetCount    – effective daily new-word target
+//   allowAiAdjust  – when true, accept AI result if ≥ 90% of target;
+//                    when false, must reach exactly targetCount
+// Always trims if AI returned more than targetCount.
+// Supplements from candidateNewWords when AI returned too few.
+export function enforceTargetNewWordCount(
+  aiNewWordIds: string[],
+  targetCount: number,
+  candidateNewWords: CandidateWord[],
+  allowAiAdjust: boolean
+): string[] {
+  // Trim excess
+  const trimmed = aiNewWordIds.length > targetCount
+    ? aiNewWordIds.slice(0, targetCount)
+    : aiNewWordIds
+
+  // Decide if supplementation is needed
+  const minAcceptable = allowAiAdjust
+    ? Math.floor(targetCount * 0.9)   // 10% slack allowed
+    : targetCount                      // strict: must reach target
+  if (trimmed.length >= minAcceptable) return trimmed
+
+  // Supplement from local candidate pool (full dynamic pool, not AI-capped slice)
+  const existing = new Set(trimmed)
+  const extra = candidateNewWords
+    .filter(w => !existing.has(w.id))
+    .slice(0, targetCount - trimmed.length)
+    .map(w => w.id)
+  return [...trimmed, ...extra]
+}
+
+// Kept for backward compatibility — delegates to enforceTargetNewWordCount.
 export function enforceUserNewWordCount(
   aiNewWordIds: string[],
   settings: MimoPlanSettings,
   candidateNewWords: CandidateWord[]
 ): string[] {
   if (settings.dailyNewWordsMode !== 'manual') return aiNewWordIds
-
-  const target = settings.dailyNewWords
-  // Always trim if AI returned more than target
-  const trimmed = aiNewWordIds.length > target ? aiNewWordIds.slice(0, target) : aiNewWordIds
-
-  if (settings.allowAiAdjust) {
-    // Soft enforcement: accept AI result if it reached at least 80% of target
-    if (trimmed.length >= Math.floor(target * 0.8)) return trimmed
-  } else {
-    // Strict enforcement: must match target exactly (if enough candidates)
-    if (trimmed.length === target) return trimmed
-  }
-
-  // Supplement from candidates to reach target
-  const existing = new Set(trimmed)
-  const extra = candidateNewWords
-    .filter(w => !existing.has(w.id))
-    .slice(0, target - trimmed.length)
-    .map(w => w.id)
-  return [...trimmed, ...extra]
+  return enforceTargetNewWordCount(
+    aiNewWordIds,
+    settings.dailyNewWords,
+    candidateNewWords,
+    settings.allowAiAdjust
+  )
 }
 
 // ── Compute effective limits that respect user settings ───────────────────────

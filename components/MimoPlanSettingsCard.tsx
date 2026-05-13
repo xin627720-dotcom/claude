@@ -17,7 +17,7 @@ import {
   generateLocalFallbackPlan,
   validateAndCleanAiPlan,
   getEffectiveLimits,
-  enforceUserNewWordCount,
+  enforceTargetNewWordCount,
   todayStr,
   addDays,
 } from '@/lib/mimoPlan'
@@ -159,16 +159,20 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
               const validIds = new Set(allWords.map(w => w.id))
               const limits = getEffectiveLimits(updated, dailyNewTarget)
               const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
-            if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
-              const enforcedNewIds = enforceUserNewWordCount(
-                cleaned.newWordIds ?? [],
-                updated,
-                candidates.candidateNewWords
-              )
-              resultPlan = {
-                ...generateLocalFallbackPlan(updated, statsObj, candidates),
-                ...cleaned,
-                newWordIds: enforcedNewIds,
+              if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
+                const effectiveTarget = updated.dailyNewWordsMode === 'manual'
+                  ? updated.dailyNewWords
+                  : dailyNewTarget
+                const enforcedNewIds = enforceTargetNewWordCount(
+                  cleaned.newWordIds ?? [],
+                  effectiveTarget,
+                  candidates.candidateNewWords,
+                  updated.allowAiAdjust
+                )
+                resultPlan = {
+                  ...generateLocalFallbackPlan(updated, statsObj, candidates),
+                  ...cleaned,
+                  newWordIds: enforcedNewIds,
                 date: todayStr(),
                 targetDate: updated.targetDate,
                 daysRemaining,

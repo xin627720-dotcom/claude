@@ -14,7 +14,7 @@ import {
   generateLocalFallbackPlan,
   validateAndCleanAiPlan,
   getEffectiveLimits,
-  enforceUserNewWordCount,
+  enforceTargetNewWordCount,
   todayStr,
 } from '@/lib/mimoPlan'
 import { getWordById } from '@/lib/vocab'
@@ -174,10 +174,14 @@ export default function DailyPlanPage() {
               const limits = getEffectiveLimits(settings, dailyNewTarget)
               const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
               if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
-                const enforcedNewIds = enforceUserNewWordCount(
+                const effectiveTarget = settings.dailyNewWordsMode === 'manual'
+                  ? settings.dailyNewWords
+                  : dailyNewTarget
+                const enforcedNewIds = enforceTargetNewWordCount(
                   cleaned.newWordIds ?? [],
-                  settings,
-                  candidates.candidateNewWords
+                  effectiveTarget,
+                  candidates.candidateNewWords,
+                  settings.allowAiAdjust
                 )
                 resultPlan = {
                   ...generateLocalFallbackPlan(settings, statsObj, candidates),
