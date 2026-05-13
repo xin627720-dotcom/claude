@@ -2,6 +2,7 @@ import { loadStore } from './localStore'
 import { allWords, getWordById } from './vocab'
 import { calculateLearningStats } from './stats'
 import { getTodayMimoPlan, getTodayProgress, getMimoPlanSettings } from './mimoPlan'
+import { getDailyTaskSequence, getCompletedTasks } from './mimoTaskRunner'
 import type {
   LocalAnalysisResult,
   WeakWordItem,
@@ -212,23 +213,18 @@ export function computeLocalAnalysis(): LocalAnalysisResult {
   const todayPlanWrongWords = todayPlan?.wrongWordIds?.length ?? 0
   const todayPlanFuzzyWords = todayPlan?.fuzzyWordIds?.length ?? 0
   const todayPlanSentenceMeaning = todayPlan?.sentenceMeaningWordIds?.length ?? 0
+  const todayPlanConfusingWords = todayPlan?.confusingWordIds?.length ?? 0
 
-  const todayTotalTasks =
-    todayPlanNewWords +
-    todayPlanReviewWords +
-    todayPlanWrongWords +
-    todayPlanFuzzyWords +
-    todayPlanSentenceMeaning
-
-  const todayCompletedTasks = todayProgress
-    ? (todayProgress.newWordsDone ?? 0) +
-      (todayProgress.reviewWordsDone ?? 0) +
-      (todayProgress.wrongWordsDone ?? 0) +
-      (todayProgress.fuzzyWordsDone ?? 0)
-    : 0
-
+  // Task-level completion: use mimoTaskRunner (6 task types, not word counts)
+  const taskSeq = todayPlan ? getDailyTaskSequence(todayPlan) : []
+  const completedTaskList = getCompletedTasks()
+  const todayTotalTasks = taskSeq.length
+  const todayCompletedTasks = taskSeq.filter((t) => completedTaskList.includes(t)).length
   const todayCompletionRate =
     todayTotalTasks > 0 ? Math.round((todayCompletedTasks / todayTotalTasks) * 100) : null
+
+  // Suppress unused variable warning for todayProgress (kept for potential future use)
+  void todayProgress
 
   return {
     totalWords: allWords.length,
@@ -252,6 +248,7 @@ export function computeLocalAnalysis(): LocalAnalysisResult {
     todayPlanWrongWords,
     todayPlanFuzzyWords,
     todayPlanSentenceMeaning,
+    todayPlanConfusingWords,
     todayCompletedTasks,
     todayTotalTasks,
     todayCompletionRate,
@@ -260,6 +257,49 @@ export function computeLocalAnalysis(): LocalAnalysisResult {
     dailyReviewLimit: planSettings.dailyReviewLimit,
     dailyIntensity: planSettings.dailyIntensity,
   }
+}
+
+/**
+ * Collect up to 10 real confusing word pairs from weakWords + highFreqUnmastered vocab entries.
+ * These are the ONLY pairs that may be passed to AI or used in display.
+ */
+function buildConfusingWordPairs(
+  analysis: LocalAnalysisResult
+): Array<{ word: string; confusingWith: string; reason: string }> {
+  const pairs: Array<{ word: string; confusingWith: string; reason: string }> = []
+  const seen = new Set<string>()
+  const candidates = [
+    ...analysis.weakWords.slice(0, 20),
+    ...analysis.highFreqUnmasteredWords.slice(0, 10),
+  ]
+  for (const w of candidates) {
+    if (pairs.length >= 10) break
+    if (seen.has(w.wordId)) continue
+    seen.add(w.wordId)
+    const vocabWord = getWordById(w.wordId)
+    if (!vocabWord?.confusingWords?.length) continue
+    for (const cw of vocabWord.confusingWords.slice(0, 2)) {
+      if (pairs.length >= 10) break
+      pairs.push({
+        word: w.word,
+        confusingWith: cw.word,
+        reason: cw.difference || `"${w.word}" 与 "${cw.word}" 字形或词义相近，易混淆`,
+      })
+    }
+  }
+  return pairs
+}
+
+/**
+ * Sentence meaning suggestion count based on new word count.
+ * Mirrors getSentenceMeaningTargetCount in mimoPlan.ts but with adjusted ranges.
+ */
+export function getSentenceMeaningSuggestionCount(newWords: number): number {
+  if (newWords <= 0) return 0
+  if (newWords <= 50) return Math.min(newWords, 10)
+  if (newWords <= 150) return 20
+  if (newWords <= 300) return 35
+  return 50
 }
 
 export function buildAiRequest(analysis: LocalAnalysisResult): AiAnalyzeRequest {
@@ -302,9 +342,11 @@ export function buildAiRequest(analysis: LocalAnalysisResult): AiAnalyzeRequest 
       wrongWords: analysis.todayPlanWrongWords,
       fuzzyWords: analysis.todayPlanFuzzyWords,
       sentenceMeaningWords: analysis.todayPlanSentenceMeaning,
+      confusingWords: analysis.todayPlanConfusingWords,
       completedTasks: analysis.todayCompletedTasks,
       totalTasks: analysis.todayTotalTasks,
     },
+    confusingWordPairs: buildConfusingWordPairs(analysis),
     planSettings: {
       dailyNewWordsMode: analysis.dailyNewWordsMode,
       dailyNewWords: analysis.dailyNewWords,
@@ -386,24 +428,9 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
     status: getWordStatus(w.status ?? 'learning'),
   }))
 
-  // Confusing word pairs from high-freq unmastered + weak words vocab data
-  const confusingWordsList: ConfusingWordPair[] = []
-  const checkedWords = new Set<string>()
-  const candidates = [...weakWords.slice(0, 15), ...highFreqUnmasteredWords.slice(0, 5)]
-  for (const w of candidates) {
-    if (confusingWordsList.length >= 5) break
-    if (checkedWords.has(w.wordId)) continue
-    checkedWords.add(w.wordId)
-    const vocabWord = getWordById(w.wordId)
-    if (!vocabWord?.confusingWords?.length) continue
-    for (const cw of vocabWord.confusingWords.slice(0, 1)) {
-      confusingWordsList.push({
-        word: w.word,
-        confusingWith: cw.word,
-        reason: cw.difference || `"${w.word}" 与 "${cw.word}" 易混淆`,
-      })
-    }
-  }
+  // Confusing word pairs — only from real vocab confusingWords entries
+  const rawPairs = buildConfusingWordPairs(analysis)
+  const confusingWordsList: ConfusingWordPair[] = rawPairs.slice(0, 5)
 
   // Tomorrow's plan calculation
   const suggestedNewWords = (() => {
@@ -421,7 +448,7 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
     newWords: suggestedNewWords,
     reviewWords: suggestedReview,
     wrongWords: Math.min(wrongWords, 10),
-    sentenceMeaningWords: Math.min(suggestedNewWords, 10),
+    sentenceMeaningWords: getSentenceMeaningSuggestionCount(suggestedNewWords),
   }
 
   // Daily new word adjustment recommendation
@@ -515,6 +542,83 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
     todayPlan: todayPlanArr,
     practiceSuggestions,
     encouragement,
+  }
+}
+
+/**
+ * Validate and patch an AI-returned result against real local data.
+ * - topReviewWords: keep only words that exist in real weakWords; fill with fallback if empty
+ * - confusingWordsList: keep only pairs that exist in real confusingWordPairs; fill with fallback
+ * - tomorrowPlan: clamp numbers to reasonable bounds; fix sentenceMeaningWords scaling
+ * - encouragement: truncate if too long (>30 Chinese chars)
+ * - any missing field: fill from fallback
+ */
+export function normalizeAiAnalysisResult(
+  aiResult: AiAnalysisResult,
+  fallback: AiAnalysisResult,
+  analysis: LocalAnalysisResult,
+  realConfusingPairs: Array<{ word: string; confusingWith: string; reason: string }>
+): AiAnalysisResult {
+  const realWeakWordSet = new Set(analysis.weakWords.map((w) => w.word.toLowerCase()))
+  const realConfusingSet = new Set(
+    realConfusingPairs.map((p) => `${p.word.toLowerCase()}:${p.confusingWith.toLowerCase()}`)
+  )
+
+  // --- topReviewWords: filter to real weak words only ---
+  const validTopReview = (aiResult.topReviewWords ?? []).filter(
+    (r) => r?.word && realWeakWordSet.has(r.word.toLowerCase())
+  )
+  const topReviewWords =
+    validTopReview.length > 0 ? validTopReview.slice(0, 5) : fallback.topReviewWords
+
+  // --- confusingWordsList: filter to real pairs only ---
+  const validConfusing = (aiResult.confusingWordsList ?? []).filter(
+    (p) =>
+      p?.word &&
+      p?.confusingWith &&
+      realConfusingSet.has(`${p.word.toLowerCase()}:${p.confusingWith.toLowerCase()}`)
+  )
+  const confusingWordsList =
+    validConfusing.length > 0 ? validConfusing : fallback.confusingWordsList
+
+  // --- tomorrowPlan: clamp and fix sentenceMeaningWords ---
+  const rawPlan = aiResult.tomorrowPlan ?? fallback.tomorrowPlan
+  const clampedNewWords = Math.max(
+    0,
+    Math.min(rawPlan.newWords ?? fallback.tomorrowPlan.newWords, analysis.dailyNewWords * 2)
+  )
+  const tomorrowPlan: TomorrowPlan = {
+    newWords: clampedNewWords,
+    reviewWords: Math.max(
+      0,
+      Math.min(
+        rawPlan.reviewWords ?? fallback.tomorrowPlan.reviewWords,
+        analysis.dailyReviewLimit
+      )
+    ),
+    wrongWords: Math.max(
+      0,
+      Math.min(rawPlan.wrongWords ?? fallback.tomorrowPlan.wrongWords, analysis.wrongWords)
+    ),
+    sentenceMeaningWords: getSentenceMeaningSuggestionCount(clampedNewWords),
+  }
+
+  // --- encouragement: keep short (≤30 chars) ---
+  const rawEncouragement = aiResult.encouragement || fallback.encouragement
+  const encouragement =
+    rawEncouragement.length > 30 ? rawEncouragement.slice(0, 30) : rawEncouragement
+
+  return {
+    ...aiResult,
+    topReviewWords,
+    confusingWordsList,
+    tomorrowPlan,
+    encouragement,
+    // Fill missing required fields from fallback
+    todayConclusion: aiResult.todayConclusion || fallback.todayConclusion,
+    mainProblem: aiResult.mainProblem || fallback.mainProblem,
+    dailyNewWordAdjustment: aiResult.dailyNewWordAdjustment || fallback.dailyNewWordAdjustment,
+    summary: aiResult.summary || fallback.summary,
   }
 }
 

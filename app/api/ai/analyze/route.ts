@@ -60,11 +60,12 @@ function buildSystemPrompt(): string {
 }
 
 topReviewWords 必须从 weakWords 数据中取最弱的5个真实单词。
-confusingWordsList 如果数据中有confusing words则列出，否则返回空数组 []。
+confusingWordsList 只能从用户数据中"真实易混词对"里选，不允许编造任何易混词对。如果没有真实易混词数据则返回 []。
 tomorrowPlan 中的数字必须根据用户数据合理计算：
   - 如果 wrongWords > 10，newWords 不超过当前 dailyNewWords 的50%
   - 如果 fuzzyWords > 20，newWords 不超过当前 dailyNewWords 的70%
   - reviewWords 不超过 dailyReviewLimit
+  - sentenceMeaningWords 按规则：newWords<=50取10，51-150取20，151-300取35，>300取50
 weakWordAnalysis 分析最弱的5个词，每条 tip 要具体（词根、联想、谐音等）。`
 }
 
@@ -83,6 +84,10 @@ function buildUserPrompt(data: AiAnalyzeRequest): string {
     `- ${w.word}（${w.meaning}）[${w.status}]: 错${w.wrongCount}次 模糊${w.fuzzyCount}次`
   ).join('\n')
 
+  const confusingPairsSummary = (data.confusingWordPairs ?? []).slice(0, 10).map((p) =>
+    `- ${p.word} vs ${p.confusingWith}: ${p.reason}`
+  ).join('\n')
+
   return `===== 学习统计数据 =====
 - 词库总词数：${s.totalWords}
 - 已接触词数：${s.touchedWords}（有学习记录）
@@ -93,16 +98,17 @@ function buildUserPrompt(data: AiAnalyzeRequest): string {
 - 未接触：${s.unseenWords} 个
 - 逾期待复习：${s.overdueCount} 个
 - 测验正确率：${s.quizAccuracy !== null ? s.quizAccuracy + '%' : '暂无数据'}
-- 今日完成率：${s.todayCompletionRate !== null ? s.todayCompletionRate + '%' : '暂无数据'}
+- 今日任务完成率：${s.todayCompletionRate !== null ? s.todayCompletionRate + '%' : '暂无数据'}（任务级，非词数级）
 - 连续学习天数：${s.streakDays} 天
 
-===== 今日计划 =====
+===== 今日计划（任务级，总任务 ${data.todayPlan.totalTasks} 项）=====
 - 新词：${data.todayPlan.newWords} 个
 - 复习：${data.todayPlan.reviewWords} 个
 - 错词：${data.todayPlan.wrongWords} 个
 - 模糊词：${data.todayPlan.fuzzyWords} 个
 - 句中识义：${data.todayPlan.sentenceMeaningWords} 题
-- 今日已完成任务：${data.todayPlan.completedTasks} / ${data.todayPlan.totalTasks}
+- 易混词辨析：${data.todayPlan.confusingWords} 题
+- 今日已完成任务项：${data.todayPlan.completedTasks} / ${data.todayPlan.totalTasks}
 
 ===== 当前计划设置 =====
 - 每日新词模式：${data.planSettings.dailyNewWordsMode === 'auto' ? '自动' : '手动'}
@@ -116,11 +122,16 @@ ${weakWordsSummary || '暂无薄弱词汇'}
 ===== 高频未掌握词（最多10个）=====
 ${highFreqSummary || '暂无高频未掌握词，或高频词已全部掌握'}
 
+===== 真实易混词对（来自词库，最多10组）=====
+${confusingPairsSummary || '暂无易混词数据'}
+
 ===== 诊断要求 =====
 1. topReviewWords 必须从上面"薄弱词汇"列表里取真实单词（最多5个），不能编造
-2. tomorrowPlan 数字必须基于上面数据合理计算
-3. 如果已接触词数为0，todayConclusion 写"暂无足够学习数据，完成一次学习或测验后会生成更具体的诊断"
-4. 不要说空话，每条建议都要有依据`
+2. confusingWordsList 只能从上面"真实易混词对"里选，不能编造。如果没有易混词数据，返回空数组 []
+3. tomorrowPlan.sentenceMeaningWords 根据 newWords 计算：<=50取10，51-150取20，151-300取35，>300取50
+4. tomorrowPlan 其他数字必须基于上面数据合理计算
+5. 如果已接触词数为0，todayConclusion 写"暂无足够学习数据，完成一次学习或测验后会生成更具体的诊断"
+6. 不要说空话，每条建议都要有依据`
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {

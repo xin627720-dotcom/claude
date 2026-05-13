@@ -69,8 +69,11 @@ export interface LocalAnalysisResult {
   todayPlanWrongWords: number
   todayPlanFuzzyWords: number
   todayPlanSentenceMeaning: number
-  todayCompletedTasks: number
+  todayPlanConfusingWords: number
+  /** Task-level: number of distinct tasks (out of 6 possible) that exist in today's plan */
   todayTotalTasks: number
+  /** Task-level: number of those tasks already marked complete in mimoTaskRunner */
+  todayCompletedTasks: number
   todayCompletionRate: number | null
   // Plan settings
   dailyNewWordsMode: string
@@ -119,9 +122,15 @@ export interface AiAnalyzeRequest {
     wrongWords: number
     fuzzyWords: number
     sentenceMeaningWords: number
+    confusingWords: number
     completedTasks: number
     totalTasks: number
   }
+  confusingWordPairs: Array<{
+    word: string
+    confusingWith: string
+    reason: string
+  }>
   planSettings: {
     dailyNewWordsMode: string
     dailyNewWords: number

@@ -9,6 +9,7 @@ import {
   isCacheStale,
   clearAiAnalysisCache,
   generateLocalFallback,
+  normalizeAiAnalysisResult,
 } from '@/lib/aiAnalysis'
 import type { LocalAnalysisResult, AiAnalysisResult } from '@/lib/aiTypes'
 import AiAnalysisCard from '@/components/AiAnalysisCard'
@@ -78,7 +79,10 @@ export default function AiAnalysisPage() {
         throw new Error(err.error ?? `HTTP ${res.status}`)
       }
 
-      const result = await res.json() as AiAnalysisResult
+      const rawResult = await res.json() as AiAnalysisResult
+      const fallback = generateLocalFallback(data)
+      const realPairs = buildAiRequest(data).confusingWordPairs
+      const result = normalizeAiAnalysisResult(rawResult, fallback, data, realPairs)
       saveCachedAiAnalysis(result)
       setAiResult(result)
       setCachedAt(new Date().toISOString())
