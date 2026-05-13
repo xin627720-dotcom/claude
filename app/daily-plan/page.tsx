@@ -15,6 +15,9 @@ import {
   validateAndCleanAiPlan,
   getEffectiveLimits,
   enforceTargetNewWordCount,
+  enforceWrongFuzzyWordIds,
+  enforceSentenceMeaningWordIds,
+  getSentenceMeaningTargetCount,
   todayStr,
 } from '@/lib/mimoPlan'
 import { getWordById } from '@/lib/vocab'
@@ -26,8 +29,11 @@ import {
   getCompletedTasks,
   getDailyTaskSequence,
   TASK_META,
+  TASK_SEQUENCE,
+  resetTodayTaskRunner,
   type MimoTask,
 } from '@/lib/mimoTaskRunner'
+import { clearTodayLearningSessions } from '@/lib/mimoLearningSession'
 import type { MimoDailyPlan } from '@/lib/types'
 
 interface TaskSection {
@@ -99,127 +105,247 @@ function TaskCard({ section, completed }: { section: TaskSection; completed: boo
   )
 }
 
+// Full task section definitions in canonical display order (matches TASK_SEQUENCE)
+function buildTaskSections(plan: MimoDailyPlan): TaskSection[] {
+  const allSections: Record<MimoTask, TaskSection> = {
+    review: {
+      id: 'review',
+      title: '到期复习',
+      icon: '🔄',
+      wordIds: plan.reviewWordIds,
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-50',
+      mode: 'mimo-review',
+      page: 'learn',
+      description: '到期词巩固，防止遗忘',
+    },
+    wrong: {
+      id: 'wrong',
+      title: '错词重认',
+      icon: '❌',
+      wordIds: plan.wrongWordIds,
+      color: 'text-danger',
+      bgColor: 'bg-red-50',
+      mode: 'mimo-wrong',
+      page: 'learn',
+      description: '重点攻克，减少失分',
+    },
+    fuzzy: {
+      id: 'fuzzy',
+      title: '模糊词加强',
+      icon: '🌫️',
+      wordIds: plan.fuzzyWordIds,
+      color: 'text-warning',
+      bgColor: 'bg-amber-50',
+      mode: 'mimo-fuzzy',
+      page: 'learn',
+      description: '提升模糊词确定性',
+    },
+    new: {
+      id: 'new',
+      title: '高频新词',
+      icon: '📖',
+      wordIds: plan.newWordIds,
+      color: 'text-accent',
+      bgColor: 'bg-accent/5',
+      mode: 'mimo-new',
+      page: 'learn',
+      description: '阅读识义，快速反应中文',
+    },
+    sentence: {
+      id: 'sentence',
+      title: '阅读句中识义',
+      icon: '📝',
+      wordIds: plan.sentenceMeaningWordIds,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      mode: 'mimo-sentence',
+      page: 'quiz',
+      description: '高考阅读场景练习',
+    },
+    confusing: {
+      id: 'confusing',
+      title: '易混词辨析',
+      icon: '🔀',
+      wordIds: plan.confusingWordIds,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      mode: 'mimo-confusing',
+      page: 'quiz',
+      description: '区分易混词，减少误选',
+    },
+  }
+  // Return in TASK_SEQUENCE order to match "继续下一个任务" order
+  return TASK_SEQUENCE.map(t => allSections[t])
+}
+
+async function generateTodayPlan(): Promise<MimoDailyPlan> {
+  const settings = getMimoPlanSettings()
+  const store = loadStore()
+  const pm = store.wordProgress
+  const { learnedWords, masteredWords, remainingWords, remainingUnseenWords } = calculateLearningStats(allWords.length, pm)
+  const daysRemaining = calculateDaysRemaining(settings.targetDate)
+
+  // Use remainingUnseenWords for auto target calculation (not total - mastered)
+  const { target: dailyNewTarget } = calculateDailyNewWordTarget(
+    remainingUnseenWords,
+    daysRemaining,
+    settings.dailyIntensity,
+    settings.dailyNewWordsMode,
+    settings.dailyNewWords
+  )
+
+  const statsObj = {
+    totalWords: allWords.length,
+    learnedWords,
+    masteredWords,
+    remainingWords,
+    daysRemaining,
+    dailyNewTarget,
+  }
+
+  const candidates = buildLocalPlanCandidates(pm, allWords, settings, dailyNewTarget)
+  const AI_CANDIDATE_CAP = 150
+  let resultPlan: MimoDailyPlan | null = null
+  const validIds = new Set(allWords.map(w => w.id))
+
+  if (settings.enabled) {
+    try {
+      const body = {
+        date: todayStr(),
+        targetDate: settings.targetDate,
+        daysRemaining,
+        totalWords: allWords.length,
+        learnedWords,
+        masteredWords,
+        remainingWords,
+        dailyNewTarget,
+        intensity: settings.dailyIntensity,
+        candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
+        candidateReviewWords: candidates.candidateReviewWords,
+        candidateWrongWords: candidates.candidateWrongWords.slice(0, 50),
+        candidateFuzzyWords: candidates.candidateFuzzyWords.slice(0, 50),
+      }
+      const resp = await fetch('/api/mimo/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (resp.ok) {
+        const raw = await resp.json()
+        if (raw && !raw.error) {
+          const limits = getEffectiveLimits(settings, dailyNewTarget)
+          const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
+          if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
+            const effectiveTarget = settings.dailyNewWordsMode === 'manual'
+              ? settings.dailyNewWords
+              : dailyNewTarget
+            const enforcedNewIds = enforceTargetNewWordCount(
+              cleaned.newWordIds ?? [],
+              effectiveTarget,
+              candidates.candidateNewWords,
+              settings.allowAiAdjust
+            )
+
+            // Enforce wrong/fuzzy from real candidates
+            const { wrongWordIds, fuzzyWordIds } = enforceWrongFuzzyWordIds(
+              cleaned.wrongWordIds ?? [],
+              cleaned.fuzzyWordIds ?? [],
+              candidates.candidateWrongWords,
+              candidates.candidateFuzzyWords,
+              settings.dailyReviewLimit,
+              validIds
+            )
+
+            // Enforce sentence meaning count dynamically
+            const sentenceTarget = getSentenceMeaningTargetCount(enforcedNewIds.length)
+            const sentenceMeaningWordIds = enforceSentenceMeaningWordIds(
+              cleaned.sentenceMeaningWordIds ?? [],
+              sentenceTarget,
+              candidates.candidateNewWords,
+              candidates.candidateWrongWords,
+              validIds,
+              allWords
+            )
+
+            const fallback = generateLocalFallbackPlan(settings, statsObj, candidates, allWords)
+            const realEstimatedMin = Math.max(
+              fallback.estimatedMinutes,
+              Math.round(
+                enforcedNewIds.length * 1.5 +
+                (cleaned.reviewWordIds?.length ?? fallback.reviewWordIds.length) * 0.5 +
+                wrongWordIds.length * 1.0 +
+                sentenceMeaningWordIds.length * 0.3
+              )
+            )
+            resultPlan = {
+              ...fallback,
+              ...cleaned,
+              newWordIds: enforcedNewIds,
+              wrongWordIds,
+              fuzzyWordIds,
+              sentenceMeaningWordIds,
+              estimatedMinutes: realEstimatedMin,
+              date: todayStr(),
+              targetDate: settings.targetDate,
+              daysRemaining,
+              totalWords: allWords.length,
+              learnedWords,
+              masteredWords,
+              remainingWords,
+              createdBy: 'mimo_ai',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }
+          }
+        }
+      }
+    } catch { /* fall through to local */ }
+  }
+
+  if (!resultPlan) {
+    resultPlan = generateLocalFallbackPlan(settings, statsObj, candidates, allWords)
+  }
+
+  return resultPlan
+}
+
 export default function DailyPlanPage() {
   const router = useRouter()
   const [plan, setPlan] = useState<MimoDailyPlan | null>(null)
   const [completedTasks, setCompletedTasks] = useState<MimoTask[]>([])
-  const [liveStats, setLiveStats] = useState<{ masteredWords: number; remainingWords: number } | null>(null)
+  const [liveStats, setLiveStats] = useState<{ masteredWords: number; remainingWords: number; remainingUnseenWords: number } | null>(null)
   const [regenerating, setRegenerating] = useState(false)
   const [regenMsg, setRegenMsg] = useState<string | null>(null)
+  const [noplan, setNoplan] = useState(false)
 
   useEffect(() => {
     const p = getTodayMimoPlan()
     setPlan(p)
+    setNoplan(p === null)
     setCompletedTasks(getCompletedTasks())
     const store = loadStore()
     const s = calculateLearningStats(allWords.length, store.wordProgress)
-    setLiveStats({ masteredWords: s.masteredWords, remainingWords: s.remainingWords })
+    setLiveStats({
+      masteredWords: s.masteredWords,
+      remainingWords: s.remainingWords,
+      remainingUnseenWords: s.remainingUnseenWords,
+    })
   }, [])
 
   const handleRegenerate = useCallback(async () => {
     setRegenerating(true)
     setRegenMsg(null)
+    // Clear old plan + task state + sessions before generating new plan
     clearTodayMimoPlan()
+    resetTodayTaskRunner()
+    clearTodayLearningSessions()
+    setCompletedTasks([])
     try {
-      const settings = getMimoPlanSettings()
-      const store = loadStore()
-      const pm = store.wordProgress
-      const { learnedWords, masteredWords, remainingWords } = calculateLearningStats(allWords.length, pm)
-      const daysRemaining = calculateDaysRemaining(settings.targetDate)
-      const { target: dailyNewTarget } = calculateDailyNewWordTarget(
-        allWords.length - learnedWords,
-        daysRemaining,
-        settings.dailyIntensity,
-        settings.dailyNewWordsMode,
-        settings.dailyNewWords
-      )
-      const statsObj = {
-        totalWords: allWords.length,
-        learnedWords,
-        masteredWords,
-        remainingWords,
-        daysRemaining,
-        dailyNewTarget,
-      }
-      const candidates = buildLocalPlanCandidates(pm, allWords, settings, dailyNewTarget)
-      const AI_CANDIDATE_CAP = 150
-      let resultPlan: MimoDailyPlan | null = null
-
-      if (settings.enabled) {
-        try {
-          const body = {
-            date: todayStr(),
-            targetDate: settings.targetDate,
-            daysRemaining,
-            totalWords: allWords.length,
-            learnedWords,
-            masteredWords,
-            remainingWords,
-            dailyNewTarget,
-            intensity: settings.dailyIntensity,
-            candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
-            candidateReviewWords: candidates.candidateReviewWords,
-            candidateWrongWords: candidates.candidateWrongWords,
-            candidateFuzzyWords: candidates.candidateFuzzyWords,
-          }
-          const resp = await fetch('/api/mimo/plan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          })
-          if (resp.ok) {
-            const raw = await resp.json()
-            if (raw && !raw.error) {
-              const validIds = new Set(allWords.map(w => w.id))
-              const limits = getEffectiveLimits(settings, dailyNewTarget)
-              const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
-              if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
-                const effectiveTarget = settings.dailyNewWordsMode === 'manual'
-                  ? settings.dailyNewWords
-                  : dailyNewTarget
-                const enforcedNewIds = enforceTargetNewWordCount(
-                  cleaned.newWordIds ?? [],
-                  effectiveTarget,
-                  candidates.candidateNewWords,
-                  settings.allowAiAdjust
-                )
-                const fallback = generateLocalFallbackPlan(settings, statsObj, candidates)
-                const realEstimatedMin = Math.max(
-                  fallback.estimatedMinutes,
-                  Math.round(
-                    enforcedNewIds.length * 1.5 +
-                    (cleaned.reviewWordIds?.length ?? fallback.reviewWordIds.length) * 0.5 +
-                    (cleaned.wrongWordIds?.length ?? fallback.wrongWordIds.length) * 1.0
-                  )
-                )
-                resultPlan = {
-                  ...fallback,
-                  ...cleaned,
-                  newWordIds: enforcedNewIds,
-                  estimatedMinutes: realEstimatedMin,
-                  date: todayStr(),
-                  targetDate: settings.targetDate,
-                  daysRemaining,
-                  totalWords: allWords.length,
-                  learnedWords,
-                  masteredWords,
-                  remainingWords,
-                  createdBy: 'mimo_ai',
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
-              }
-            }
-          }
-        } catch { /* fall through to local */ }
-      }
-
-      if (!resultPlan) {
-        resultPlan = generateLocalFallbackPlan(settings, statsObj, candidates)
-      }
-
+      const resultPlan = await generateTodayPlan()
       saveTodayMimoPlan(resultPlan)
       setPlan(resultPlan)
+      setNoplan(false)
       setRegenMsg('计划已根据你的设置重新生成')
       setTimeout(() => setRegenMsg(null), 4000)
     } catch {
@@ -231,15 +357,37 @@ export default function DailyPlanPage() {
 
   const settings = getMimoPlanSettings()
 
-  if (!plan) {
+  // No plan state
+  if (noplan && !regenerating) {
+    if (!settings.enabled) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
+          <p className="text-4xl mb-4">📋</p>
+          <p className="font-semibold text-text-primary mb-2">Mimo AI 今日计划已关闭</p>
+          <p className="text-sm text-text-secondary mb-6">请到我的页面开启 Mimo AI 学习计划</p>
+          <Link
+            href="/profile#mimo-settings"
+            className="px-5 py-3 rounded-xl bg-accent text-white font-semibold text-sm active:scale-95 transition-all"
+          >
+            去开启
+          </Link>
+        </div>
+      )
+    }
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
         <p className="text-4xl mb-4">📋</p>
         <p className="font-semibold text-text-primary mb-2">今日还没有学习计划</p>
-        <p className="text-sm text-text-secondary mb-6">请从首页生成 Mimo AI 今日计划</p>
+        <p className="text-sm text-text-secondary mb-6">点击下方按钮生成今日计划</p>
+        <button
+          onClick={handleRegenerate}
+          className="px-5 py-3 rounded-xl bg-accent text-white font-semibold text-sm active:scale-95 transition-all"
+        >
+          生成今日计划
+        </button>
         <button
           onClick={() => router.push('/')}
-          className="px-5 py-3 rounded-xl bg-accent text-white font-semibold text-sm active:scale-95 transition-all"
+          className="mt-3 px-5 py-3 rounded-xl bg-white text-text-primary font-semibold text-sm shadow-card active:scale-95 transition-all"
         >
           返回首页
         </button>
@@ -247,87 +395,31 @@ export default function DailyPlanPage() {
     )
   }
 
-  const taskSections: TaskSection[] = [
-    {
-      id: 'new',
-      title: '高频新词',
-      icon: '📖',
-      wordIds: plan.newWordIds,
-      color: 'text-accent',
-      bgColor: 'bg-accent/5',
-      mode: 'mimo-new',
-      page: 'learn',
-      description: '阅读识义，快速反应中文',
-    },
-    {
-      id: 'review',
-      title: '到期复习',
-      icon: '🔄',
-      wordIds: plan.reviewWordIds,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-50',
-      mode: 'mimo-review',
-      page: 'learn',
-      description: '到期词巩固，防止遗忘',
-    },
-    {
-      id: 'wrong',
-      title: '错词重认',
-      icon: '❌',
-      wordIds: plan.wrongWordIds,
-      color: 'text-danger',
-      bgColor: 'bg-red-50',
-      mode: 'mimo-wrong',
-      page: 'learn',
-      description: '重点攻克，减少失分',
-    },
-    {
-      id: 'fuzzy',
-      title: '模糊词加强',
-      icon: '🌫️',
-      wordIds: plan.fuzzyWordIds,
-      color: 'text-warning',
-      bgColor: 'bg-amber-50',
-      mode: 'mimo-fuzzy',
-      page: 'learn',
-      description: '提升模糊词确定性',
-    },
-    {
-      id: 'sentence',
-      title: '阅读句中识义',
-      icon: '📝',
-      wordIds: plan.sentenceMeaningWordIds,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      mode: 'mimo-sentence',
-      page: 'quiz',
-      description: '高考阅读场景练习',
-    },
-    {
-      id: 'confusing',
-      title: '易混词辨析',
-      icon: '🔀',
-      wordIds: plan.confusingWordIds,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      mode: 'mimo-confusing',
-      page: 'quiz',
-      description: '区分易混词，减少误选',
-    },
-  ]
+  if (regenerating) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
+        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin mb-4" />
+        <p className="text-sm text-text-secondary">Mimo AI 正在生成今日计划…</p>
+      </div>
+    )
+  }
 
+  if (!plan) return null
+
+  const taskSections = buildTaskSections(plan)
   const activeSections = taskSections.filter(s => s.wordIds.length > 0)
-  const totalTasks = activeSections.reduce((sum, s) => sum + s.wordIds.length, 0)
+  const totalTasks = activeSections.length
   const sequence = getDailyTaskSequence(plan)
   const nextTask = getCurrentDailyTask(plan)
   const allDone = sequence.length > 0 && completedTasks.filter(t => sequence.includes(t)).length === sequence.length
+  const completedCount = completedTasks.filter(t => sequence.includes(t)).length
 
   const intensityLabel =
     settings.dailyIntensity === 'easy' ? '轻松' :
     settings.dailyIntensity === 'normal' ? '标准' : '冲刺'
 
   const displayMastered = liveStats?.masteredWords ?? plan.masteredWords
-  const displayRemaining = liveStats?.remainingWords ?? plan.remainingWords
+  const displayUnseen = liveStats?.remainingUnseenWords ?? (plan.totalWords - plan.learnedWords)
 
   return (
     <div className="px-4 pt-12 pb-6 animate-fade-up">
@@ -369,7 +461,7 @@ export default function DailyPlanPage() {
         </div>
       )}
 
-      {/* Goal summary with live stats */}
+      {/* Goal summary */}
       <div className="bg-gradient-to-r from-accent/10 to-purple-100 rounded-xl p-4 mb-4">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
@@ -377,16 +469,16 @@ export default function DailyPlanPage() {
             <p className="text-xs text-text-secondary">剩余天数</p>
           </div>
           <div>
-            <p className="text-xl font-bold text-text-primary">{displayRemaining}</p>
-            <p className="text-xs text-text-secondary">剩余词汇</p>
+            <p className="text-xl font-bold text-text-primary">{displayUnseen}</p>
+            <p className="text-xs text-text-secondary">未接触词</p>
           </div>
           <div>
             <p className="text-xl font-bold text-warning">{plan.estimatedMinutes}</p>
-            <p className="text-xs text-text-secondary">预计分钟</p>
+            <p className="text-xs text-text-secondary">参考分钟</p>
           </div>
         </div>
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-accent/10 text-xs text-text-secondary">
-          <span>{intensityLabel}模式 · 共 {totalTasks} 个词</span>
+          <span>{intensityLabel}模式 · {completedCount}/{totalTasks} 任务完成</span>
           <span>{displayMastered} / {plan.totalWords} 已掌握</span>
         </div>
       </div>
@@ -400,7 +492,7 @@ export default function DailyPlanPage() {
         )}
       </div>
 
-      {/* Task sections */}
+      {/* Task sections — in TASK_SEQUENCE order */}
       {activeSections.map(s => (
         <TaskCard key={s.id} section={s} completed={completedTasks.includes(s.id)} />
       ))}
@@ -412,25 +504,17 @@ export default function DailyPlanPage() {
           <p className="text-xs text-text-tertiary mt-1">{plan.motivationalMessage}</p>
         </div>
       ) : (
-        <div className="flex gap-2 mt-4">
-          {nextTask && (
-            <button
-              onClick={() => {
-                const meta = TASK_META[nextTask]
-                router.push(`/${meta.page}?mode=${meta.mode}`)
-              }}
-              className="flex-1 py-3 rounded-xl bg-accent text-white text-sm font-semibold text-center active:scale-[0.97] transition-all"
-            >
-              {`继续 · ${TASK_META[nextTask].icon} ${TASK_META[nextTask].title}`}
-            </button>
-          )}
-          <Link
-            href="/quiz?mode=mimo-sentence"
-            className="flex-1 py-3 rounded-xl bg-white text-text-primary text-sm font-semibold text-center shadow-card active:scale-[0.97] transition-all"
+        nextTask && (
+          <button
+            onClick={() => {
+              const meta = TASK_META[nextTask]
+              router.push(`/${meta.page}?mode=${meta.mode}`)
+            }}
+            className="w-full mt-4 py-3 rounded-xl bg-accent text-white text-sm font-semibold text-center active:scale-[0.97] transition-all"
           >
-            阅读识义测验
-          </Link>
-        </div>
+            {`继续 · ${TASK_META[nextTask].icon} ${TASK_META[nextTask].title}`}
+          </button>
+        )
       )}
 
       {!allDone && plan.motivationalMessage && (

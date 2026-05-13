@@ -18,9 +18,14 @@ import {
   validateAndCleanAiPlan,
   getEffectiveLimits,
   enforceTargetNewWordCount,
+  enforceWrongFuzzyWordIds,
+  enforceSentenceMeaningWordIds,
+  getSentenceMeaningTargetCount,
   todayStr,
   addDays,
 } from '@/lib/mimoPlan'
+import { resetTodayTaskRunner } from '@/lib/mimoTaskRunner'
+import { clearTodayLearningSessions } from '@/lib/mimoLearningSession'
 import type { MimoPlanSettings, MimoDailyPlan, MimoTargetMode, MimoIntensity } from '@/lib/types'
 
 const REVIEW_LIMIT_OPTIONS = [20, 50, 100, 150] as const
@@ -96,6 +101,9 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
     }
     saveMimoPlanSettings(updated)
     clearTodayMimoPlan()
+    // Clear old task state and sessions so new plan starts fresh
+    resetTodayTaskRunner()
+    clearTodayLearningSessions()
     setSettings(updated)
     onSaved?.()
 
@@ -111,10 +119,10 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
     try {
       const store = loadStore()
       const pm = store.wordProgress
-      const { learnedWords, masteredWords, remainingWords } = calculateLearningStats(allWords.length, pm)
+      const { learnedWords, masteredWords, remainingWords, remainingUnseenWords } = calculateLearningStats(allWords.length, pm)
       const daysRemaining = calculateDaysRemaining(updated.targetDate)
       const { target: dailyNewTarget } = calculateDailyNewWordTarget(
-        allWords.length - learnedWords,
+        remainingUnseenWords,
         daysRemaining,
         updated.dailyIntensity,
         updated.dailyNewWordsMode,
@@ -132,6 +140,7 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
       const AI_CANDIDATE_CAP = 150
       let resultPlan: MimoDailyPlan | null = null
 
+      const validIds = new Set(allWords.map(w => w.id))
       try {
         const body = {
           date: todayStr(),
@@ -145,8 +154,8 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
           intensity: updated.dailyIntensity,
           candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
           candidateReviewWords: candidates.candidateReviewWords,
-          candidateWrongWords: candidates.candidateWrongWords,
-          candidateFuzzyWords: candidates.candidateFuzzyWords,
+          candidateWrongWords: candidates.candidateWrongWords.slice(0, 50),
+          candidateFuzzyWords: candidates.candidateFuzzyWords.slice(0, 50),
         }
         const resp = await fetch('/api/mimo/plan', {
           method: 'POST',
@@ -156,7 +165,6 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
         if (resp.ok) {
           const raw = await resp.json()
           if (raw && !raw.error) {
-              const validIds = new Set(allWords.map(w => w.id))
               const limits = getEffectiveLimits(updated, dailyNewTarget)
               const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
               if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
@@ -169,19 +177,43 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
                   candidates.candidateNewWords,
                   updated.allowAiAdjust
                 )
-                const fallback = generateLocalFallbackPlan(updated, statsObj, candidates)
+
+                const { wrongWordIds, fuzzyWordIds } = enforceWrongFuzzyWordIds(
+                  cleaned.wrongWordIds ?? [],
+                  cleaned.fuzzyWordIds ?? [],
+                  candidates.candidateWrongWords,
+                  candidates.candidateFuzzyWords,
+                  updated.dailyReviewLimit,
+                  validIds
+                )
+
+                const sentenceTarget = getSentenceMeaningTargetCount(enforcedNewIds.length)
+                const sentenceMeaningWordIds = enforceSentenceMeaningWordIds(
+                  cleaned.sentenceMeaningWordIds ?? [],
+                  sentenceTarget,
+                  candidates.candidateNewWords,
+                  candidates.candidateWrongWords,
+                  validIds,
+                  allWords
+                )
+
+                const fallback = generateLocalFallbackPlan(updated, statsObj, candidates, allWords)
                 const realEstimatedMin = Math.max(
                   fallback.estimatedMinutes,
                   Math.round(
                     enforcedNewIds.length * 1.5 +
                     (cleaned.reviewWordIds?.length ?? fallback.reviewWordIds.length) * 0.5 +
-                    (cleaned.wrongWordIds?.length ?? fallback.wrongWordIds.length) * 1.0
+                    wrongWordIds.length * 1.0 +
+                    sentenceMeaningWordIds.length * 0.3
                   )
                 )
                 resultPlan = {
                   ...fallback,
                   ...cleaned,
                   newWordIds: enforcedNewIds,
+                  wrongWordIds,
+                  fuzzyWordIds,
+                  sentenceMeaningWordIds,
                   estimatedMinutes: realEstimatedMin,
                   date: todayStr(),
                   targetDate: updated.targetDate,
@@ -200,7 +232,7 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
       } catch { /* fall through to local */ }
 
       if (!resultPlan) {
-        resultPlan = generateLocalFallbackPlan(updated, statsObj, candidates)
+        resultPlan = generateLocalFallbackPlan(updated, statsObj, candidates, allWords)
       }
 
       saveTodayMimoPlan(resultPlan)
@@ -212,21 +244,20 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
     }
   }
 
-  // Warning calculation
+  // Warning calculation — use remainingUnseenWords for auto target accuracy
   const warningInfo = (() => {
     if (!settings.targetDate) return null
     const days = calculateDaysRemaining(settings.targetDate)
     const store = loadStore()
-    const mastered = Object.values(store.wordProgress).filter(p => p.status === 'mastered').length
-    const remaining = allWords.length - mastered
+    const { remainingUnseenWords, remainingUnmasteredWords } = calculateLearningStats(allWords.length, store.wordProgress)
     const { target, warning } = calculateDailyNewWordTarget(
-      remaining,
+      remainingUnseenWords,
       days,
       settings.dailyIntensity,
       settings.dailyNewWordsMode,
       settings.dailyNewWords
     )
-    return { days, remaining, target, warning }
+    return { days, remainingUnseen: remainingUnseenWords, remainingUnmastered: remainingUnmasteredWords, target, warning }
   })()
 
   const toggleProps = (active: boolean) =>
@@ -357,8 +388,9 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
             </div>
           </div>
 
-          {/* ── 每日预计学习时长 ─────────────────────────────── */}
-          <p className="text-xs font-medium text-text-primary mb-2 mt-3">每日预计学习时长</p>
+          {/* ── 每日学习时间参考 ─────────────────────────────── */}
+          <p className="text-xs font-medium text-text-primary mb-1 mt-3">每日学习时间参考</p>
+          <p className="text-[10px] text-text-tertiary mb-2">短期冲刺目标会优先按完成时间安排，新词量较大时预计时长可能超过该参考值。</p>
           <div className="flex flex-wrap gap-1.5 mb-3">
             {DAILY_MINUTES_OPTIONS.map(v => (
               <button
@@ -416,7 +448,10 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
             <div className="mt-3 bg-accent/5 rounded-lg px-3 py-2 text-xs text-text-secondary">
               <p>
                 距目标 <strong className="text-text-primary">{warningInfo.days}</strong> 天 ·
-                剩余 <strong className="text-text-primary">{warningInfo.remaining}</strong> 词 ·
+                未接触 <strong className="text-text-primary">{warningInfo.remainingUnseen}</strong> 词 ·
+                未掌握 <strong className="text-text-primary">{warningInfo.remainingUnmastered}</strong> 词
+              </p>
+              <p className="mt-0.5">
                 建议每天新学 <strong className="text-text-primary">{warningInfo.target}</strong> 词
               </p>
               {warningInfo.warning && (

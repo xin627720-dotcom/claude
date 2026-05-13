@@ -8,6 +8,7 @@ import type {
   FrequencyLevel,
 } from './types'
 import type { VocabWord } from './types'
+import { getLocalDateString } from './date'
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 const SETTINGS_KEY = 'mimoPlanSettings_v1'
@@ -46,20 +47,21 @@ export interface CandidateWord {
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
+// Use local timezone date to avoid UTC date-shift for Taiwan (UTC+8) users.
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return getLocalDateString()
 }
 
 export function addDays(base: string, days: number): string {
-  const d = new Date(base)
+  const d = new Date(base + 'T00:00:00')
   d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return getLocalDateString(d)
 }
 
 export function calculateDaysRemaining(targetDate: string | null): number {
   if (!targetDate) return 90
-  const today = new Date(todayStr())
-  const target = new Date(targetDate)
+  const today = new Date(todayStr() + 'T00:00:00')
+  const target = new Date(targetDate + 'T00:00:00')
   const diff = Math.ceil((target.getTime() - today.getTime()) / 86400000)
   return Math.max(1, diff)
 }
@@ -157,8 +159,6 @@ export function saveTodayProgress(p: MimoPlanProgress): void {
 }
 
 // ── Daily new-word target ──────────────────────────────────────────────────────
-// Intensity no longer caps new-word count. Intensity only affects review limits
-// and estimated minutes. New-word count is driven by target date or manual input.
 export function calculateDailyNewWordTarget(
   remainingUnlearned: number,
   daysRemaining: number,
@@ -176,7 +176,7 @@ export function calculateDailyNewWordTarget(
     return { target: manualTarget, capped: false, warning }
   }
 
-  // Auto mode: directly calculate from remaining/days, no intensity cap on new words
+  // Auto mode: directly calculate from remaining/days
   const raw = Math.ceil(remainingUnlearned / Math.max(1, daysRemaining))
   let warning: string | null = null
   if (raw > 200) {
@@ -189,10 +189,15 @@ export function calculateDailyNewWordTarget(
   return { target: raw, capped: false, warning }
 }
 
+// ── Sentence meaning target count (dynamic based on new-word count) ───────────
+export function getSentenceMeaningTargetCount(newWordCount: number): number {
+  if (newWordCount <= 50) return Math.min(newWordCount, 10)
+  if (newWordCount <= 150) return 20
+  if (newWordCount <= 300) return 35
+  return 50
+}
+
 // ── Build local candidate word lists ─────────────────────────────────────────
-// Returns prioritised candidate lists sized to cover the effective daily target.
-// The local-fallback pool is large enough to satisfy even high targets; callers
-// should cap what they send to the AI separately (see AI_CANDIDATE_CAP).
 export function buildLocalPlanCandidates(
   wordProgress: Record<string, {
     status: WordStatus
@@ -204,7 +209,7 @@ export function buildLocalPlanCandidates(
   }>,
   words: VocabWord[],
   settings: MimoPlanSettings,
-  dailyNewTarget?: number   // effective new-word target for dynamic pool sizing
+  dailyNewTarget?: number
 ): {
   candidateNewWords: CandidateWord[]
   candidateReviewWords: CandidateWord[]
@@ -265,9 +270,9 @@ export function buildLocalPlanCandidates(
 
   return {
     candidateNewWords:    newWords.slice(0, Math.max(120, newWordPoolSize)),
-    candidateReviewWords: reviewWords.slice(0, 150),
-    candidateWrongWords:  wrongWords.slice(0, 50),
-    candidateFuzzyWords:  fuzzyWords.slice(0, 50),
+    candidateReviewWords: reviewWords.slice(0, 200),
+    candidateWrongWords:  wrongWords,
+    candidateFuzzyWords:  fuzzyWords,
   }
 }
 
@@ -278,16 +283,15 @@ export function generateLocalFallbackPlan(
     totalWords: number; learnedWords: number; masteredWords: number
     remainingWords: number; daysRemaining: number; dailyNewTarget: number
   },
-  candidates: ReturnType<typeof buildLocalPlanCandidates>
+  candidates: ReturnType<typeof buildLocalPlanCandidates>,
+  allVocabWords?: VocabWord[]
 ): MimoDailyPlan {
   const limits = INTENSITY_LIMITS[settings.dailyIntensity]
   const now = new Date().toISOString()
 
-  // Resolve effective new-word count based on mode
-  // Intensity no longer caps new words — it only affects review limits and minutes.
   const effectiveNewTarget: number = settings.dailyNewWordsMode === 'manual'
     ? settings.dailyNewWords
-    : stats.dailyNewTarget  // use the calculated target directly
+    : stats.dailyNewTarget
 
   // Effective review cap: respect user's dailyReviewLimit and intensity
   const effectiveReviewCap = Math.min(settings.dailyReviewLimit, limits.reviewWords)
@@ -296,13 +300,25 @@ export function generateLocalFallbackPlan(
     .slice(0, effectiveNewTarget)
     .map(w => w.id)
 
+  // Wrong/fuzzy: proportional to review cap, not fixed 10
+  const wrongTarget = Math.min(
+    candidates.candidateWrongWords.length,
+    Math.max(10, Math.floor(effectiveReviewCap * 0.25)),
+    50
+  )
+  const fuzzyTarget = Math.min(
+    candidates.candidateFuzzyWords.length,
+    Math.max(10, Math.floor(effectiveReviewCap * 0.25)),
+    50
+  )
+
   const wrongIds = candidates.candidateWrongWords
-    .slice(0, Math.min(10, Math.floor(effectiveReviewCap * 0.2)))
+    .slice(0, wrongTarget)
     .map(w => w.id)
 
   const fuzzyIds = candidates.candidateFuzzyWords
     .filter(w => !wrongIds.includes(w.id))
-    .slice(0, Math.min(10, Math.floor(effectiveReviewCap * 0.15)))
+    .slice(0, fuzzyTarget)
     .map(w => w.id)
 
   const usedIds = new Set([...newIds, ...wrongIds, ...fuzzyIds])
@@ -311,16 +327,17 @@ export function generateLocalFallbackPlan(
     .slice(0, effectiveReviewCap)
     .map(w => w.id)
 
-  // sentence-meaning: take from wrong + high-freq new
-  const sentenceIds = [
-    ...candidates.candidateWrongWords.slice(0, 5),
-    ...candidates.candidateNewWords.filter(w => w.frequencyLevel === '高频').slice(0, 5),
-  ].filter((w, i, arr) => arr.findIndex(x => x.id === w.id) === i)
-    .slice(0, 10)
-    .map(w => w.id)
+  // sentence-meaning: dynamic count based on new word count
+  const sentenceTarget = getSentenceMeaningTargetCount(newIds.length)
+  const sentenceIds = buildSentenceMeaningIds(
+    candidates.candidateNewWords,
+    candidates.candidateWrongWords,
+    sentenceTarget,
+    allVocabWords
+  )
 
   const estimatedMin = Math.round(
-    (newIds.length * 1.5 + reviewIds.length * 0.5 + wrongIds.length * 1.0)
+    (newIds.length * 1.5 + reviewIds.length * 0.5 + wrongIds.length * 1.0 + sentenceIds.length * 0.3)
   )
 
   const intensityLabel =
@@ -352,31 +369,83 @@ export function generateLocalFallbackPlan(
   }
 }
 
+// ── Build sentence-meaning word IDs ───────────────────────────────────────────
+// Prioritizes high-freq new words with examples/gaokaoExamples.
+// Falls back to any new word with examples, then wrong words with examples.
+export function buildSentenceMeaningIds(
+  candidateNewWords: CandidateWord[],
+  candidateWrongWords: CandidateWord[],
+  target: number,
+  allVocabWords?: VocabWord[]
+): string[] {
+  if (target <= 0) return []
+
+  // Build a lookup for vocab details (has examples?)
+  const vocabMap = new Map<string, VocabWord>()
+  if (allVocabWords) {
+    for (const w of allVocabWords) vocabMap.set(w.id, w)
+  }
+
+  const hasExamples = (id: string): boolean => {
+    const v = vocabMap.get(id)
+    if (!v) return true // assume yes if no vocab map available
+    return (v.gaokaoExamples?.length ?? 0) > 0 || (v.examples?.length ?? 0) > 0
+  }
+
+  const picked = new Set<string>()
+
+  // Tier 1: high-freq new words with examples
+  for (const w of candidateNewWords) {
+    if (picked.size >= target) break
+    if (w.frequencyLevel === '高频' && hasExamples(w.id)) picked.add(w.id)
+  }
+
+  // Tier 2: any new word with examples
+  for (const w of candidateNewWords) {
+    if (picked.size >= target) break
+    if (!picked.has(w.id) && hasExamples(w.id)) picked.add(w.id)
+  }
+
+  // Tier 3: wrong words with examples (supplement only)
+  const wrongBudget = Math.floor(target * 0.2)
+  let wrongAdded = 0
+  for (const w of candidateWrongWords) {
+    if (picked.size >= target || wrongAdded >= wrongBudget) break
+    if (!picked.has(w.id) && hasExamples(w.id)) {
+      picked.add(w.id)
+      wrongAdded++
+    }
+  }
+
+  // Tier 4: any remaining new words (no example filter)
+  for (const w of candidateNewWords) {
+    if (picked.size >= target) break
+    if (!picked.has(w.id)) picked.add(w.id)
+  }
+
+  return Array.from(picked).slice(0, target)
+}
+
 // ── Enforce new-word count target after merging AI result ─────────────────────
-// Used for both auto and manual modes.
-//   targetCount    – effective daily new-word target
-//   allowAiAdjust  – when true, accept AI result if ≥ 90% of target;
-//                    when false, must reach exactly targetCount
-// Always trims if AI returned more than targetCount.
-// Supplements from candidateNewWords when AI returned too few.
+// allowAiAdjust only affects AI ordering / prioritization, NOT the total count.
+// Both auto and manual modes strictly enforce target count:
+//   - trim if AI returned more than targetCount
+//   - supplement from candidateNewWords if AI returned too few
+// Returns actual candidates if pool is exhausted (with fewer than target).
 export function enforceTargetNewWordCount(
   aiNewWordIds: string[],
   targetCount: number,
   candidateNewWords: CandidateWord[],
-  allowAiAdjust: boolean
+  _allowAiAdjust: boolean  // kept for API compatibility; no longer grants count slack
 ): string[] {
   // Trim excess
   const trimmed = aiNewWordIds.length > targetCount
     ? aiNewWordIds.slice(0, targetCount)
     : aiNewWordIds
 
-  // Decide if supplementation is needed
-  const minAcceptable = allowAiAdjust
-    ? Math.floor(targetCount * 0.9)   // 10% slack allowed
-    : targetCount                      // strict: must reach target
-  if (trimmed.length >= minAcceptable) return trimmed
+  if (trimmed.length >= targetCount) return trimmed
 
-  // Supplement from local candidate pool (full dynamic pool, not AI-capped slice)
+  // Supplement from local candidate pool to strictly reach target
   const existing = new Set(trimmed)
   const extra = candidateNewWords
     .filter(w => !existing.has(w.id))
@@ -403,8 +472,6 @@ export function enforceUserNewWordCount(
 // ── Compute effective limits that respect user settings ───────────────────────
 export interface IntensityLimit { newWords: number; reviewWords: number; minMin: number; maxMin: number }
 
-// dailyNewTarget: pass the pre-computed target so AI validation uses the real value.
-// For auto mode this is Math.ceil(remaining/days); for manual it's settings.dailyNewWords.
 export function getEffectiveLimits(
   settings: MimoPlanSettings,
   dailyNewTarget?: number
@@ -412,10 +479,35 @@ export function getEffectiveLimits(
   const base = INTENSITY_LIMITS[settings.dailyIntensity]
   const effectiveNew = settings.dailyNewWordsMode === 'manual'
     ? settings.dailyNewWords
-    : (dailyNewTarget ?? base.newWords)  // use real target; fall back to intensity hint
-  // dailyReviewLimit is a user ceiling; also cap by intensity
+    : (dailyNewTarget ?? base.newWords)
   const effectiveReview = Math.min(settings.dailyReviewLimit, base.reviewWords)
   return { ...base, newWords: effectiveNew, reviewWords: effectiveReview }
+}
+
+// ── Enforce sentence meaning word IDs after AI response ──────────────────────
+export function enforceSentenceMeaningWordIds(
+  aiIds: string[],
+  target: number,
+  candidateNewWords: CandidateWord[],
+  candidateWrongWords: CandidateWord[],
+  validIds: Set<string>,
+  allVocabWords?: VocabWord[]
+): string[] {
+  // Filter to valid IDs first
+  const filtered = aiIds.filter(id => validIds.has(id))
+
+  if (filtered.length >= target) return filtered.slice(0, target)
+
+  // Supplement using local rule
+  const localIds = buildSentenceMeaningIds(
+    candidateNewWords,
+    candidateWrongWords,
+    target,
+    allVocabWords
+  )
+  const existing = new Set(filtered)
+  const extra = localIds.filter(id => !existing.has(id)).slice(0, target - filtered.length)
+  return [...filtered, ...extra].slice(0, target)
 }
 
 // ── Validate and clean AI response ────────────────────────────────────────────
@@ -432,17 +524,61 @@ export function validateAndCleanAiPlan(
   const newIds = filterIds(raw.newWordIds, limits.newWords)
   if (newIds.length === 0 && !raw.reviewWordIds) return null  // completely empty
 
+  // wrong/fuzzy: use large caps here; callers will apply real limits based on candidates
   return {
     planTitle: typeof raw.planTitle === 'string' ? raw.planTitle : '今日阅读词汇计划',
     aiSummary: typeof raw.aiSummary === 'string' ? raw.aiSummary : '',
     newWordIds: newIds,
     reviewWordIds: filterIds(raw.reviewWordIds, limits.reviewWords),
-    wrongWordIds: filterIds(raw.wrongWordIds, 20),
-    fuzzyWordIds: filterIds(raw.fuzzyWordIds, 20),
-    sentenceMeaningWordIds: filterIds(raw.sentenceMeaningWordIds, 15),
-    confusingWordIds: filterIds(raw.confusingWordIds, 10),
+    wrongWordIds: filterIds(raw.wrongWordIds, 100),
+    fuzzyWordIds: filterIds(raw.fuzzyWordIds, 100),
+    sentenceMeaningWordIds: filterIds(raw.sentenceMeaningWordIds, 100),
+    confusingWordIds: filterIds(raw.confusingWordIds, 100),
     estimatedMinutes: typeof raw.estimatedMinutes === 'number' ? raw.estimatedMinutes : limits.minMin,
     priorityReason: typeof raw.priorityReason === 'string' ? raw.priorityReason : '',
     motivationalMessage: typeof raw.motivationalMessage === 'string' ? raw.motivationalMessage : '',
   }
+}
+
+// ── Enforce wrong/fuzzy counts based on actual candidates ────────────────────
+export function enforceWrongFuzzyWordIds(
+  aiWrongIds: string[],
+  aiFuzzyIds: string[],
+  candidateWrongWords: CandidateWord[],
+  candidateFuzzyWords: CandidateWord[],
+  dailyReviewLimit: number,
+  validIds: Set<string>
+): { wrongWordIds: string[]; fuzzyWordIds: string[] } {
+  const candidateWrongIds = candidateWrongWords.map(w => w.id)
+  const candidateFuzzyIds = candidateFuzzyWords.map(w => w.id)
+
+  const wrongTarget = Math.min(
+    candidateWrongWords.length,
+    Math.max(10, Math.floor(dailyReviewLimit * 0.25)),
+    50
+  )
+  const fuzzyTarget = Math.min(
+    candidateFuzzyWords.length,
+    Math.max(10, Math.floor(dailyReviewLimit * 0.25)),
+    50
+  )
+
+  // Filter AI IDs to only valid candidates
+  const filteredWrong = aiWrongIds.filter(id => validIds.has(id) && candidateWrongIds.includes(id))
+  const filteredFuzzy = aiFuzzyIds.filter(id => validIds.has(id) && candidateFuzzyIds.includes(id))
+
+  // Supplement from candidates if AI returned too few
+  const wrongSet = new Set(filteredWrong)
+  const extraWrong = candidateWrongIds
+    .filter(id => !wrongSet.has(id))
+    .slice(0, wrongTarget - filteredWrong.length)
+  const wrongWordIds = [...filteredWrong, ...extraWrong].slice(0, wrongTarget)
+
+  const fuzzySet = new Set([...filteredFuzzy, ...wrongWordIds])
+  const extraFuzzy = candidateFuzzyIds
+    .filter(id => !fuzzySet.has(id))
+    .slice(0, fuzzyTarget - filteredFuzzy.length)
+  const fuzzyWordIds = [...filteredFuzzy, ...extraFuzzy].slice(0, fuzzyTarget)
+
+  return { wrongWordIds, fuzzyWordIds }
 }

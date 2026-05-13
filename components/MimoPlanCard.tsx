@@ -17,8 +17,13 @@ import {
   validateAndCleanAiPlan,
   getEffectiveLimits,
   enforceTargetNewWordCount,
+  enforceWrongFuzzyWordIds,
+  enforceSentenceMeaningWordIds,
+  getSentenceMeaningTargetCount,
   todayStr,
 } from '@/lib/mimoPlan'
+import { resetTodayTaskRunner, getCompletedTasks, getDailyTaskSequence } from '@/lib/mimoTaskRunner'
+import { clearTodayLearningSessions } from '@/lib/mimoLearningSession'
 import type { MimoDailyPlan } from '@/lib/types'
 
 function StatPill({ label, value, color }: { label: string; value: number; color: string }) {
@@ -34,20 +39,26 @@ export default function MimoPlanCard() {
   const [plan, setPlan] = useState<MimoDailyPlan | null>(null)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [completedCount, setCompletedCount] = useState(0)
+  const [totalTaskCount, setTotalTaskCount] = useState(0)
 
-  const buildAndSavePlan = useCallback(async (forceAI = false): Promise<void> => {
+  const buildAndSavePlan = useCallback(async (clearState = false): Promise<void> => {
     setError(null)
     setGenerating(true)
+    if (clearState) {
+      resetTodayTaskRunner()
+      clearTodayLearningSessions()
+      setCompletedCount(0)
+    }
     try {
       const settings = getMimoPlanSettings()
       const store = loadStore()
       const pm = store.wordProgress
 
-      // Stats
-      const { learnedWords, masteredWords, remainingWords } = calculateLearningStats(allWords.length, pm)
+      const { learnedWords, masteredWords, remainingWords, remainingUnseenWords } = calculateLearningStats(allWords.length, pm)
       const daysRemaining = calculateDaysRemaining(settings.targetDate)
       const { target: dailyNewTarget, warning } = calculateDailyNewWordTarget(
-        allWords.length - learnedWords,
+        remainingUnseenWords,
         daysRemaining,
         settings.dailyIntensity,
         settings.dailyNewWordsMode,
@@ -64,13 +75,10 @@ export default function MimoPlanCard() {
       }
 
       const candidates = buildLocalPlanCandidates(pm, allWords, settings, dailyNewTarget)
-
-      // Cap what we send to AI — AI doesn't need huge candidate lists, and sending
-      // hundreds of words wastes tokens. Local fallback uses the full dynamic pool.
       const AI_CANDIDATE_CAP = 150
       let resultPlan: MimoDailyPlan | null = null
+      const validIds = new Set(allWords.map(w => w.id))
 
-      // Try AI if enabled and not suppressed
       if (settings.enabled) {
         try {
           const body = {
@@ -85,8 +93,8 @@ export default function MimoPlanCard() {
             intensity: settings.dailyIntensity,
             candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
             candidateReviewWords: candidates.candidateReviewWords,
-            candidateWrongWords: candidates.candidateWrongWords,
-            candidateFuzzyWords: candidates.candidateFuzzyWords,
+            candidateWrongWords: candidates.candidateWrongWords.slice(0, 50),
+            candidateFuzzyWords: candidates.candidateFuzzyWords.slice(0, 50),
           }
           const resp = await fetch('/api/mimo/plan', {
             method: 'POST',
@@ -96,12 +104,9 @@ export default function MimoPlanCard() {
           if (resp.ok) {
             const raw = await resp.json()
             if (raw && !raw.error) {
-              const validIds = new Set(allWords.map(w => w.id))
               const limits = getEffectiveLimits(settings, dailyNewTarget)
               const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
               if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
-                // Enforce the effective target for both auto and manual modes.
-                // Uses the full local candidate pool (not the AI-capped slice) to supplement.
                 const effectiveTarget = settings.dailyNewWordsMode === 'manual'
                   ? settings.dailyNewWords
                   : dailyNewTarget
@@ -111,19 +116,43 @@ export default function MimoPlanCard() {
                   candidates.candidateNewWords,
                   settings.allowAiAdjust
                 )
-                const fallback = generateLocalFallbackPlan(settings, statsObj, candidates)
+
+                const { wrongWordIds, fuzzyWordIds } = enforceWrongFuzzyWordIds(
+                  cleaned.wrongWordIds ?? [],
+                  cleaned.fuzzyWordIds ?? [],
+                  candidates.candidateWrongWords,
+                  candidates.candidateFuzzyWords,
+                  settings.dailyReviewLimit,
+                  validIds
+                )
+
+                const sentenceTarget = getSentenceMeaningTargetCount(enforcedNewIds.length)
+                const sentenceMeaningWordIds = enforceSentenceMeaningWordIds(
+                  cleaned.sentenceMeaningWordIds ?? [],
+                  sentenceTarget,
+                  candidates.candidateNewWords,
+                  candidates.candidateWrongWords,
+                  validIds,
+                  allWords
+                )
+
+                const fallback = generateLocalFallbackPlan(settings, statsObj, candidates, allWords)
                 const realEstimatedMin = Math.max(
                   fallback.estimatedMinutes,
                   Math.round(
                     enforcedNewIds.length * 1.5 +
                     (cleaned.reviewWordIds?.length ?? fallback.reviewWordIds.length) * 0.5 +
-                    (cleaned.wrongWordIds?.length ?? fallback.wrongWordIds.length) * 1.0
+                    wrongWordIds.length * 1.0 +
+                    sentenceMeaningWordIds.length * 0.3
                   )
                 )
                 resultPlan = {
                   ...fallback,
                   ...cleaned,
                   newWordIds: enforcedNewIds,
+                  wrongWordIds,
+                  fuzzyWordIds,
+                  sentenceMeaningWordIds,
                   estimatedMinutes: realEstimatedMin,
                   date: todayStr(),
                   targetDate: settings.targetDate,
@@ -143,11 +172,18 @@ export default function MimoPlanCard() {
       }
 
       if (!resultPlan) {
-        resultPlan = generateLocalFallbackPlan(settings, statsObj, candidates)
+        resultPlan = generateLocalFallbackPlan(settings, statsObj, candidates, allWords)
       }
 
       saveTodayMimoPlan(resultPlan)
       setPlan(resultPlan)
+
+      // Update task completion counts
+      const seq = getDailyTaskSequence(resultPlan)
+      const completed = getCompletedTasks()
+      setCompletedCount(completed.filter(t => seq.includes(t)).length)
+      setTotalTaskCount(seq.length)
+
       if (warning) setError(warning)
     } catch (e) {
       setError(e instanceof Error ? e.message : '计划生成失败')
@@ -163,11 +199,15 @@ export default function MimoPlanCard() {
     const existing = getTodayMimoPlan()
     if (existing) {
       setPlan(existing)
+      const seq = getDailyTaskSequence(existing)
+      const completed = getCompletedTasks()
+      setCompletedCount(completed.filter(t => seq.includes(t)).length)
+      setTotalTaskCount(seq.length)
       return
     }
 
     if (settings.autoGenerateDailyPlan) {
-      buildAndSavePlan()
+      buildAndSavePlan(false)
     }
   }, [buildAndSavePlan])
 
@@ -208,7 +248,7 @@ export default function MimoPlanCard() {
         <p className="text-sm font-semibold text-text-primary mb-2">Mimo AI 今日阅读词汇计划</p>
         <p className="text-xs text-text-secondary mb-3">今天还没有计划，点击生成</p>
         <button
-          onClick={() => buildAndSavePlan()}
+          onClick={() => buildAndSavePlan(false)}
           className="w-full py-2.5 rounded-lg bg-accent text-white text-sm font-medium active:scale-[0.97] transition-all"
         >
           生成今日计划
@@ -216,16 +256,6 @@ export default function MimoPlanCard() {
       </div>
     )
   }
-
-  const totalTaskWords =
-    plan.newWordIds.length +
-    plan.reviewWordIds.length +
-    plan.wrongWordIds.length +
-    plan.fuzzyWordIds.length
-
-  const progress = getTodayProgress()
-  const doneCount = progress?.completedWordIds.length ?? 0
-  const completionRate = totalTaskWords > 0 ? Math.round((doneCount / totalTaskWords) * 100) : 0
 
   return (
     <div className="bg-white rounded-xl shadow-card p-4 mb-4">
@@ -248,35 +278,37 @@ export default function MimoPlanCard() {
         {plan.aiSummary}
       </p>
 
-      {/* Progress bar */}
-      {completionRate > 0 && (
+      {/* Task completion progress (by task count, not word count) */}
+      {totalTaskCount > 0 && (
         <div className="mb-3">
           <div className="flex justify-between text-[10px] text-text-tertiary mb-1">
-            <span>今日完成进度</span>
-            <span>{completionRate}%</span>
+            <span>今日任务完成</span>
+            <span>{completedCount} / {totalTaskCount} 个任务</span>
           </div>
           <div className="w-full bg-bg-tertiary rounded-full h-1.5">
             <div
               className="bg-accent h-1.5 rounded-full transition-all duration-500"
-              style={{ width: `${completionRate}%` }}
+              style={{ width: `${totalTaskCount > 0 ? Math.round((completedCount / totalTaskCount) * 100) : 0}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-5 gap-1 mb-3 bg-bg-primary rounded-xl p-2.5">
+      {/* Stats — all 6 task types */}
+      <div className="grid grid-cols-6 gap-0.5 mb-3 bg-bg-primary rounded-xl p-2">
         <StatPill label="新词" value={plan.newWordIds.length} color="text-accent" />
         <StatPill label="复习" value={plan.reviewWordIds.length} color="text-blue-500" />
         <StatPill label="错词" value={plan.wrongWordIds.length} color="text-danger" />
         <StatPill label="模糊" value={plan.fuzzyWordIds.length} color="text-warning" />
-        <StatPill label="约分钟" value={plan.estimatedMinutes} color="text-text-secondary" />
+        <StatPill label="句中识义" value={plan.sentenceMeaningWordIds.length} color="text-purple-600" />
+        <StatPill label="易混词" value={plan.confusingWordIds.length} color="text-green-600" />
       </div>
 
       {/* Distance to goal */}
       <div className="flex items-center justify-between text-xs text-text-tertiary mb-3">
         <span>距目标 <strong className="text-text-primary">{plan.daysRemaining}</strong> 天</span>
-        <span>剩余 <strong className="text-text-primary">{plan.remainingWords}</strong> 词</span>
+        <span>未接触 <strong className="text-text-primary">{plan.totalWords - plan.learnedWords}</strong> 词</span>
+        <span>约 <strong className="text-text-primary">{plan.estimatedMinutes}</strong> 分钟参考</span>
       </div>
 
       {error && <p className="text-[10px] text-warning mb-2">⚠ {error}</p>}
@@ -306,14 +338,3 @@ export default function MimoPlanCard() {
   )
 }
 
-// Re-export helper needed by the card
-function getTodayProgress() {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = localStorage.getItem('mimoPlanHistory_v1')
-    if (!raw) return null
-    const all = JSON.parse(raw)
-    const today = new Date().toISOString().slice(0, 10)
-    return all[today] ?? null
-  } catch { return null }
-}

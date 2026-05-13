@@ -9,6 +9,10 @@ export interface LearningStats {
   fuzzyWords: number
   learnedWords: number
   remainingWords: number
+  /** Words that have never been seen at all (status === 'unseen') */
+  remainingUnseenWords: number
+  /** Words not yet mastered (total - mastered); includes learning/fuzzy/known */
+  remainingUnmasteredWords: number
 }
 
 export function calculateLearningStats(
@@ -27,6 +31,9 @@ export function calculateLearningStats(
     if (p.status === 'fuzzy' || (p.fuzzyCount ?? 0) > 0) fuzzyWords++
   }
 
+  const remainingUnseenWords = totalCount - touchedWords
+  const remainingUnmasteredWords = totalCount - masteredWords
+
   return {
     totalWords: totalCount,
     touchedWords,
@@ -35,6 +42,8 @@ export function calculateLearningStats(
     wrongWords,
     fuzzyWords,
     learnedWords: touchedWords,
-    remainingWords: totalCount - masteredWords,
+    remainingWords: remainingUnmasteredWords,  // backward compat: = unmastered
+    remainingUnseenWords,
+    remainingUnmasteredWords,
   }
 }
