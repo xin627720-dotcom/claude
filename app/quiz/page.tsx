@@ -15,6 +15,12 @@ import { trySyncInBackground } from '@/lib/sync'
 import { buildReviewQueue, getNextReviewDate } from '@/lib/review'
 import { canUseSpeech, speakWordDirect } from '@/lib/speech'
 import { markTaskComplete, type MimoTask } from '@/lib/mimoTaskRunner'
+import {
+  getLearningSession,
+  saveLearningSession,
+  clearLearningSession,
+  updateSessionProgress,
+} from '@/lib/mimoLearningSession'
 import type { VocabWord } from '@/lib/types'
 
 function getWordExample(word: VocabWord): { en: string; zh: string } | null {
@@ -92,6 +98,78 @@ export default function QuizPage() {
       : ''
     urlModeRef.current = urlMode
 
+    // mimo-sentence and mimo-confusing: support resume via mimoLearningSession_v1
+    if (urlMode === 'mimo-sentence' || urlMode === 'mimo-confusing') {
+      const existing = getLearningSession(urlMode)
+      if (
+        existing &&
+        existing.wordIds.length > 0 &&
+        existing.currentIndex < existing.wordIds.length
+      ) {
+        // Resume from saved position
+        const q = existing.wordIds
+        const resumeIndex = existing.currentIndex
+        setQueue(q)
+        setIndex(resumeIndex)
+        saveQuizProgress({
+          currentQuizQueue: q,
+          currentQuizIndex: resumeIndex,
+          answeredWordIds: existing.completedWordIds,
+          wrongWordIds: [],
+          updatedAt: new Date().toISOString(),
+        })
+        setupQuestion(q, resumeIndex)
+        setReady(true)
+        return
+      }
+
+      // No valid session — build word list from daily plan
+      let mimoIds: string[] = []
+      try {
+        const raw = localStorage.getItem('mimoDailyPlan_v1')
+        if (raw) {
+          const plan = JSON.parse(raw)
+          const today = new Date().toISOString().slice(0, 10)
+          if (plan.date === today) {
+            if (urlMode === 'mimo-sentence') {
+              const ids: string[] = [
+                ...(plan.sentenceMeaningWordIds ?? []),
+                ...(plan.confusingWordIds ?? []),
+                ...(plan.wrongWordIds ?? []),
+              ]
+              const seen = new Set<string>()
+              mimoIds = ids.filter(id => { if (seen.has(id)) return false; seen.add(id); return true })
+            } else {
+              // mimo-confusing
+              mimoIds = plan.confusingWordIds ?? []
+            }
+          }
+        }
+      } catch {}
+
+      if (mimoIds.length > 0) {
+        const q = mimoIds.slice(0, 20)
+        const now = new Date().toISOString()
+        saveLearningSession({
+          date: now.slice(0, 10),
+          mode: urlMode,
+          wordIds: q,
+          currentIndex: 0,
+          completedWordIds: [],
+          updatedAt: now,
+        })
+        setQueue(q)
+        setIndex(0)
+        saveQuizProgress({ currentQuizQueue: q, currentQuizIndex: 0, answeredWordIds: [], wrongWordIds: [], updatedAt: now })
+        setupQuestion(q, 0)
+      } else {
+        setDone(true)
+      }
+      setReady(true)
+      return
+    }
+
+    // Other mimo modes (mimo-wrong, mimo-fuzzy, etc.) — original logic, no session
     let mimoIds: string[] = []
     if (urlMode.startsWith('mimo-')) {
       try {
@@ -100,16 +178,7 @@ export default function QuizPage() {
           const plan = JSON.parse(raw)
           const today = new Date().toISOString().slice(0, 10)
           if (plan.date === today) {
-            if (urlMode === 'mimo-sentence') {
-              // sentence: sentenceMeaningWordIds + confusingWordIds + wrongWordIds
-              const ids: string[] = [
-                ...(plan.sentenceMeaningWordIds ?? []),
-                ...(plan.confusingWordIds ?? []),
-                ...(plan.wrongWordIds ?? []),
-              ]
-              const seen = new Set<string>()
-              mimoIds = ids.filter(id => { if (seen.has(id)) return false; seen.add(id); return true })
-            } else if (urlMode === 'mimo-wrong') mimoIds = plan.wrongWordIds ?? []
+            if (urlMode === 'mimo-wrong') mimoIds = plan.wrongWordIds ?? []
             else if (urlMode === 'mimo-fuzzy') mimoIds = plan.fuzzyWordIds ?? []
           }
         }
@@ -127,13 +196,13 @@ export default function QuizPage() {
       return
     }
 
+    // Normal quiz mode — resume or start fresh
     const saved = getQuizProgress()
     const progressMap = Object.fromEntries(
       allWords.map((w) => [w.id, getWordProgress(w.id)])
     )
     const fullQueue = buildReviewQueue(allWords.map((w) => w.id), progressMap)
 
-    // Resume or start fresh
     if (
       saved.currentQuizQueue.length > 0 &&
       saved.currentQuizIndex < saved.currentQuizQueue.length
@@ -205,6 +274,12 @@ export default function QuizPage() {
         updatedAt: now,
       })
 
+      // Update mimo session progress for resumable modes
+      const urlMode = urlModeRef.current
+      if (urlMode === 'mimo-sentence' || urlMode === 'mimo-confusing') {
+        updateSessionProgress(urlMode, nextIndex, correct.id)
+      }
+
       setTimeout(() => {
         if (nextIndex >= queue.length) {
           setDone(true)
@@ -252,7 +327,11 @@ export default function QuizPage() {
           {isMimoMode ? (
             <button
               onClick={() => {
-                const task = QUIZ_MODE_TO_TASK[urlModeRef.current]
+                const mode = urlModeRef.current
+                if (mode === 'mimo-sentence' || mode === 'mimo-confusing') {
+                  clearLearningSession(mode)
+                }
+                const task = QUIZ_MODE_TO_TASK[mode]
                 if (task) markTaskComplete(task)
                 router.push('/daily-plan')
               }}
