@@ -1,6 +1,6 @@
 'use client'
 
-import type { AiAnalysisResult } from '@/lib/aiTypes'
+import type { AiAnalysisResult, LocalAnalysisResult } from '@/lib/aiTypes'
 
 const levelColors: Record<string, string> = {
   '入门': 'bg-gray-100 text-gray-600',
@@ -13,18 +13,28 @@ const levelColors: Record<string, string> = {
 interface Props {
   result: AiAnalysisResult
   cachedAt: string
+  localData?: LocalAnalysisResult | null
 }
 
-export default function AiAnalysisCard({ result, cachedAt }: Props) {
+export default function AiAnalysisCard({ result, cachedAt, localData }: Props) {
   const levelClass = levelColors[result.overallLevel] ?? 'bg-gray-100 text-gray-600'
   const time = new Date(cachedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 
+  // Use localData for accurate display stats if available
+  const touchedWords = localData?.seenWords ?? 0
+  const masteredWords = localData?.masteredWords ?? 0
+  const knownWords = localData?.knownWords ?? 0
+  const fuzzyWords = localData?.fuzzyWords ?? 0
+  const wrongWords = localData?.wrongWords ?? 0
+  const quizAccuracy = localData?.quizAccuracy ?? null
+  const todayCompletionRate = localData?.todayCompletionRate ?? null
+
   return (
     <div className="space-y-3">
-      {/* Summary */}
+      {/* Today's conclusion — hero card */}
       <div className="bg-white rounded-xl shadow-card p-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold text-text-primary text-sm">AI 诊断总评</h2>
+          <h2 className="font-semibold text-text-primary text-sm">今日结论</h2>
           <div className="flex items-center gap-2">
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${levelClass}`}>
               {result.overallLevel}
@@ -32,16 +42,162 @@ export default function AiAnalysisCard({ result, cachedAt }: Props) {
             <span className="text-[10px] text-text-tertiary">{time} 更新</span>
           </div>
         </div>
-        <p className="text-sm text-text-secondary leading-relaxed">{result.summary}</p>
-        {result.memoryCurveInsight && (
-          <p className="mt-2 text-xs text-text-tertiary border-t pt-2">{result.memoryCurveInsight}</p>
+        <p className="text-sm font-medium text-text-primary leading-relaxed">
+          {result.todayConclusion || result.summary}
+        </p>
+        {result.mainProblem && result.mainProblem !== result.todayConclusion && (
+          <p className="mt-2 text-xs text-text-secondary border-t pt-2 leading-relaxed">
+            {result.mainProblem}
+          </p>
         )}
       </div>
 
-      {/* Today's plan */}
-      {result.todayPlan?.length > 0 && (
+      {/* Current data — real stats */}
+      <div className="bg-white rounded-xl shadow-card p-4">
+        <h2 className="font-semibold text-text-primary text-sm mb-3">当前数据</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: '已接触', value: touchedWords, color: 'text-accent' },
+            { label: '已掌握', value: masteredWords, color: 'text-success' },
+            { label: '认识', value: knownWords, color: 'text-blue-500' },
+            { label: '模糊', value: fuzzyWords, color: 'text-warning' },
+            { label: '错词', value: wrongWords, color: 'text-danger' },
+            {
+              label: '测验正确率',
+              value: quizAccuracy !== null ? `${quizAccuracy}%` : '暂无',
+              color: quizAccuracy !== null && quizAccuracy >= 70 ? 'text-success' : 'text-warning',
+            },
+          ].map((item) => (
+            <div key={item.label} className="text-center py-2 bg-gray-50 rounded-lg">
+              <p className={`text-lg font-bold ${item.color}`}>{item.value}</p>
+              <p className="text-[10px] text-text-tertiary mt-0.5">{item.label}</p>
+            </div>
+          ))}
+        </div>
+        {todayCompletionRate !== null && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-text-tertiary">今日完成率</span>
+            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-accent rounded-full transition-all"
+                style={{ width: `${todayCompletionRate}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium text-accent">{todayCompletionRate}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Top 5 review words — real words with reasons */}
+      {result.topReviewWords?.length > 0 && (
         <div className="bg-white rounded-xl shadow-card p-4">
-          <h2 className="font-semibold text-text-primary text-sm mb-2">今日学习计划</h2>
+          <h2 className="font-semibold text-text-primary text-sm mb-3">最需要复习的词</h2>
+          <div className="space-y-2.5">
+            {result.topReviewWords.slice(0, 5).map((item, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                  i === 0 ? 'bg-danger text-white' :
+                  i === 1 ? 'bg-orange-400 text-white' :
+                  i === 2 ? 'bg-yellow-400 text-white' :
+                  'bg-gray-100 text-text-tertiary'
+                }`}>{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm text-text-primary">{item.word}</span>
+                    <span className="text-[10px] bg-gray-100 text-text-tertiary px-1.5 py-0.5 rounded-full">
+                      {item.status}
+                    </span>
+                    {item.wrongCount > 0 && (
+                      <span className="text-[10px] text-danger">✗{item.wrongCount}</span>
+                    )}
+                    {item.fuzzyCount > 0 && (
+                      <span className="text-[10px] text-warning">~{item.fuzzyCount}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-tertiary mt-0.5 truncate">{item.meaning}</p>
+                  <p className="text-xs text-text-secondary mt-0.5">{item.reason}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Confusing words */}
+      {result.confusingWordsList?.length > 0 ? (
+        <div className="bg-white rounded-xl shadow-card p-4">
+          <h2 className="font-semibold text-text-primary text-sm mb-3">最容易混淆的词</h2>
+          <div className="space-y-2">
+            {result.confusingWordsList.map((item, i) => (
+              <div key={i} className="bg-orange-50 rounded-lg p-2.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-sm text-text-primary">{item.word}</span>
+                  <span className="text-text-tertiary text-xs">vs</span>
+                  <span className="font-medium text-sm text-orange-600">{item.confusingWith}</span>
+                </div>
+                <p className="text-xs text-text-secondary">{item.reason}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-card p-4">
+          <h2 className="font-semibold text-text-primary text-sm mb-2">最容易混淆的词</h2>
+          <p className="text-xs text-text-tertiary">暂无足够易混词数据，继续测验后生成。</p>
+        </div>
+      )}
+
+      {/* Tomorrow's plan — specific numbers */}
+      {result.tomorrowPlan && (
+        <div className="bg-white rounded-xl shadow-card p-4">
+          <h2 className="font-semibold text-text-primary text-sm mb-3">明日计划建议</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: '新词', value: result.tomorrowPlan.newWords, color: 'text-accent', unit: '个' },
+              { label: '复习', value: result.tomorrowPlan.reviewWords, color: 'text-blue-500', unit: '个' },
+              { label: '错词重认', value: result.tomorrowPlan.wrongWords, color: 'text-danger', unit: '个' },
+              { label: '句中识义', value: result.tomorrowPlan.sentenceMeaningWords, color: 'text-purple-500', unit: '题' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                <span className="text-xs text-text-tertiary">{item.label}</span>
+                <span className={`font-bold text-sm ${item.color}`}>
+                  {item.value} <span className="text-[10px] font-normal">{item.unit}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Daily new word adjustment */}
+      {result.dailyNewWordAdjustment && (
+        <div className="bg-white rounded-xl shadow-card p-4">
+          <h2 className="font-semibold text-text-primary text-sm mb-2">是否调整计划</h2>
+          <p className="text-sm text-text-secondary leading-relaxed">{result.dailyNewWordAdjustment}</p>
+        </div>
+      )}
+
+      {/* Legacy: weak word analysis (if topReviewWords not available) */}
+      {(!result.topReviewWords || result.topReviewWords.length === 0) &&
+        result.weakWordAnalysis?.length > 0 && (
+          <div className="bg-white rounded-xl shadow-card p-4">
+            <h2 className="font-semibold text-text-primary text-sm mb-2">重点攻克词汇</h2>
+            <div className="space-y-3">
+              {result.weakWordAnalysis.map((item, i) => (
+                <div key={i} className="border-l-2 border-danger/40 pl-3">
+                  <p className="font-medium text-sm text-text-primary">{item.word}</p>
+                  <p className="text-xs text-text-tertiary mt-0.5">{item.issue}</p>
+                  <p className="text-xs text-accent mt-1">💡 {item.tip}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      {/* Legacy: today's plan (if tomorrowPlan not available) */}
+      {!result.tomorrowPlan && result.todayPlan?.length > 0 && (
+        <div className="bg-white rounded-xl shadow-card p-4">
+          <h2 className="font-semibold text-text-primary text-sm mb-2">今日建议</h2>
           <ul className="space-y-1.5">
             {result.todayPlan.map((item, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-text-secondary">
@@ -55,40 +211,9 @@ export default function AiAnalysisCard({ result, cachedAt }: Props) {
         </div>
       )}
 
-      {/* Weak word analysis */}
-      {result.weakWordAnalysis?.length > 0 && (
-        <div className="bg-white rounded-xl shadow-card p-4">
-          <h2 className="font-semibold text-text-primary text-sm mb-2">重点攻克词汇</h2>
-          <div className="space-y-3">
-            {result.weakWordAnalysis.map((item, i) => (
-              <div key={i} className="border-l-2 border-danger/40 pl-3">
-                <p className="font-medium text-sm text-text-primary">{item.word}</p>
-                <p className="text-xs text-text-tertiary mt-0.5">{item.issue}</p>
-                <p className="text-xs text-accent mt-1">💡 {item.tip}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Practice suggestions */}
-      {result.practiceSuggestions?.length > 0 && (
-        <div className="bg-white rounded-xl shadow-card p-4">
-          <h2 className="font-semibold text-text-primary text-sm mb-2">练习建议</h2>
-          <ul className="space-y-1.5">
-            {result.practiceSuggestions.map((s, i) => (
-              <li key={i} className="text-sm text-text-secondary flex items-start gap-2">
-                <span className="text-accent flex-shrink-0">•</span>
-                {s}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Encouragement */}
+      {/* Short encouragement — always at the bottom */}
       {result.encouragement && (
-        <div className="bg-gradient-to-r from-accent/10 to-purple-100 rounded-xl p-4 text-center">
+        <div className="bg-gradient-to-r from-accent/10 to-purple-100 rounded-xl p-3 text-center">
           <p className="text-sm text-accent font-medium">{result.encouragement}</p>
         </div>
       )}
