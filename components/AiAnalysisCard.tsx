@@ -1,6 +1,23 @@
 'use client'
 
 import type { AiAnalysisResult, LocalAnalysisResult } from '@/lib/aiTypes'
+import { allWords } from '@/lib/vocab'
+import type { VocabWord } from '@/lib/types'
+
+// Build a case-insensitive lookup by word string at module load time (static data)
+const vocabByName = new Map<string, VocabWord>(
+  allWords.map((w) => [w.word.toLowerCase(), w])
+)
+
+function getVocabByName(word: string): VocabWord | undefined {
+  return vocabByName.get(word.toLowerCase())
+}
+
+function getBestExample(v: VocabWord): string | null {
+  const gk = v.gaokaoExamples?.[0]?.en
+  if (gk) return gk
+  return v.examples[0]?.en ?? null
+}
 
 const levelColors: Record<string, string> = {
   '入门': 'bg-gray-100 text-gray-600',
@@ -123,29 +140,80 @@ export default function AiAnalysisCard({ result, cachedAt, localData }: Props) {
         </div>
       )}
 
-      {/* Confusing words */}
-      {result.confusingWordsList?.length > 0 ? (
-        <div className="bg-white rounded-xl shadow-card p-4">
-          <h2 className="font-semibold text-text-primary text-sm mb-3">最容易混淆的词</h2>
-          <div className="space-y-2">
-            {result.confusingWordsList.map((item, i) => (
-              <div key={i} className="bg-orange-50 rounded-lg p-2.5">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-sm text-text-primary">{item.word}</span>
-                  <span className="text-text-tertiary text-xs">vs</span>
-                  <span className="font-medium text-sm text-orange-600">{item.confusingWith}</span>
-                </div>
-                <p className="text-xs text-text-secondary">{item.reason}</p>
-              </div>
-            ))}
+      {/* Confusing words — rich display with vocab lookup */}
+      {(() => {
+        // Filter pairs to only those where BOTH words exist in local vocab
+        const richPairs = (result.confusingWordsList ?? [])
+          .map((item) => ({
+            item,
+            vocabA: getVocabByName(item.word),
+            vocabB: getVocabByName(item.confusingWith),
+          }))
+          .filter((p) => p.vocabA && p.vocabB)
+
+        if (richPairs.length === 0) {
+          return (
+            <div className="bg-white rounded-xl shadow-card p-4">
+              <h2 className="font-semibold text-text-primary text-sm mb-2">最容易混淆的词</h2>
+              <p className="text-xs text-text-tertiary">暂无足够易混词数据，继续测验后生成。</p>
+            </div>
+          )
+        }
+
+        return (
+          <div className="bg-white rounded-xl shadow-card p-4">
+            <h2 className="font-semibold text-text-primary text-sm mb-3">最容易混淆的词</h2>
+            <div className="space-y-4">
+              {richPairs.map(({ item, vocabA, vocabB }, i) => {
+                const exA = getBestExample(vocabA!)
+                const exB = getBestExample(vocabB!)
+                return (
+                  <div key={i} className="border border-orange-100 rounded-xl overflow-hidden">
+                    {/* Two word cards side by side */}
+                    <div className="flex">
+                      {/* Word A */}
+                      <div className="flex-1 bg-blue-50 p-3 border-r border-orange-100">
+                        <p className="font-semibold text-sm text-blue-800">{vocabA!.word}</p>
+                        <p className="text-[11px] text-text-tertiary mt-0.5">
+                          {vocabA!.pos} {vocabA!.meaning}
+                        </p>
+                        {exA ? (
+                          <p className="text-[10px] text-text-secondary mt-1.5 italic leading-relaxed line-clamp-2">
+                            &ldquo;{exA}&rdquo;
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-text-tertiary mt-1.5 italic">暂无例句</p>
+                        )}
+                      </div>
+                      {/* Word B */}
+                      <div className="flex-1 bg-orange-50 p-3">
+                        <p className="font-semibold text-sm text-orange-700">{vocabB!.word}</p>
+                        <p className="text-[11px] text-text-tertiary mt-0.5">
+                          {vocabB!.pos} {vocabB!.meaning}
+                        </p>
+                        {exB ? (
+                          <p className="text-[10px] text-text-secondary mt-1.5 italic leading-relaxed line-clamp-2">
+                            &ldquo;{exB}&rdquo;
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-text-tertiary mt-1.5 italic">暂无例句</p>
+                        )}
+                      </div>
+                    </div>
+                    {/* One-sentence difference */}
+                    <div className="px-3 py-2 bg-white border-t border-orange-100">
+                      <p className="text-xs text-text-secondary">
+                        <span className="font-medium text-orange-600">区别：</span>
+                        {item.reason}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl shadow-card p-4">
-          <h2 className="font-semibold text-text-primary text-sm mb-2">最容易混淆的词</h2>
-          <p className="text-xs text-text-tertiary">暂无足够易混词数据，继续测验后生成。</p>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Tomorrow's plan — specific numbers */}
       {result.tomorrowPlan && (

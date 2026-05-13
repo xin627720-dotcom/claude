@@ -461,15 +461,8 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
     dailyNewWordAdjustment = `当前复习压力不高，可以维持每日 ${dailyNewWords} 个新词，继续保持节奏。`
   }
 
-  // Short encouragement
-  let encouragement = ''
-  if (seenWords === 0) {
-    encouragement = '开始第一次学习，诊断会更具体。'
-  } else if (wrongWords > 5) {
-    encouragement = '先把薄弱词清掉，学习效率会更高。'
-  } else {
-    encouragement = '保持每天复习，记忆会越来越稳固。'
-  }
+  // Short encouragement — natural learning advice, no commercial/slogan language
+  const encouragement = safeEncouragementByData(analysis)
 
   // Summary (used by legacy display)
   const summary =
@@ -545,6 +538,29 @@ export function generateLocalFallback(analysis: LocalAnalysisResult): AiAnalysis
   }
 }
 
+const FORBIDDEN_ENCOURAGEMENT_WORDS = [
+  '库存', '进货', '清仓', '爆仓', '冲货', '清库', '收割', '打仗', '鸡血',
+  '冲刺清', '突击', '战场', '备战', '冲关', '刷题机器', '拼命',
+]
+
+function safeEncouragementByData(analysis: LocalAnalysisResult): string {
+  if (analysis.seenWords === 0) return '完成第一次学习后，诊断会更具体。'
+  if (analysis.wrongWords > 5) return '先把错词重认一遍，薄弱词清掉后学新词会更快。'
+  if (analysis.fuzzyWords > 10) return '模糊词多说明需要加强巩固，稳住已学词再扩展更有效。'
+  if (analysis.weakWords.length > 0) {
+    const top = analysis.weakWords[0]
+    return `把 ${top.word} 这类高频词吃透，阅读题会更稳。`
+  }
+  return '保持每天复习，词汇记忆会越来越稳固。'
+}
+
+function sanitizeEncouragement(text: string, analysis: LocalAnalysisResult): string {
+  if (!text) return safeEncouragementByData(analysis)
+  const hasForbidden = FORBIDDEN_ENCOURAGEMENT_WORDS.some((w) => text.includes(w))
+  if (hasForbidden || text.length > 40) return safeEncouragementByData(analysis)
+  return text
+}
+
 /**
  * Validate and patch an AI-returned result against real local data.
  * - topReviewWords: keep only words that exist in real weakWords; fill with fallback if empty
@@ -603,10 +619,9 @@ export function normalizeAiAnalysisResult(
     sentenceMeaningWords: getSentenceMeaningSuggestionCount(clampedNewWords),
   }
 
-  // --- encouragement: keep short (≤30 chars) ---
+  // --- encouragement: reject forbidden commercial/slogan phrases, keep short ---
   const rawEncouragement = aiResult.encouragement || fallback.encouragement
-  const encouragement =
-    rawEncouragement.length > 30 ? rawEncouragement.slice(0, 30) : rawEncouragement
+  const encouragement = sanitizeEncouragement(rawEncouragement, analysis)
 
   return {
     ...aiResult,
