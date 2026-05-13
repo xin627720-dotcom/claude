@@ -259,8 +259,8 @@ export function buildLocalPlanCandidates(
   fuzzyWords.sort((a, b) => b.fuzzyCount - a.fuzzyCount || freqScore(a.frequencyLevel) - freqScore(b.frequencyLevel))
 
   return {
-    candidateNewWords:    newWords.slice(0, 80),
-    candidateReviewWords: reviewWords.slice(0, 80),
+    candidateNewWords:    newWords.slice(0, 120),
+    candidateReviewWords: reviewWords.slice(0, 150),
     candidateWrongWords:  wrongWords.slice(0, 50),
     candidateFuzzyWords:  fuzzyWords.slice(0, 50),
   }
