@@ -497,6 +497,8 @@ export function getEffectiveLimits(
 }
 
 // ── Enforce sentence meaning word IDs after AI response ──────────────────────
+// AI IDs are kept only if the word actually has gaokaoExamples or examples,
+// so the sentence-quiz task always has real sentences to display.
 export function enforceSentenceMeaningWordIds(
   aiIds: string[],
   target: number,
@@ -505,21 +507,35 @@ export function enforceSentenceMeaningWordIds(
   validIds: Set<string>,
   allVocabWords?: VocabWord[]
 ): string[] {
-  // Filter to valid IDs first
-  const filtered = aiIds.filter(id => validIds.has(id))
+  // Build a fast example-presence lookup when vocab data is available
+  const hasExamples = (id: string): boolean => {
+    if (!allVocabWords) return true  // no vocab map — optimistically keep
+    const v = vocabMapCache.get(id)
+    return (v?.gaokaoExamples?.length ?? 0) > 0 || (v?.examples?.length ?? 0) > 0
+  }
 
-  if (filtered.length >= target) return filtered.slice(0, target)
+  // Lazy-build the vocab map once (reuse within this call)
+  const vocabMapCache = new Map<string, VocabWord>()
+  if (allVocabWords) {
+    for (const w of allVocabWords) vocabMapCache.set(w.id, w)
+  }
 
-  // Supplement using local rule
+  // Keep only AI IDs that are valid vocab entries AND have real examples
+  const filteredWithExamples = aiIds.filter(id => validIds.has(id) && hasExamples(id))
+
+  if (filteredWithExamples.length >= target) return filteredWithExamples.slice(0, target)
+
+  // Supplement using local rule (which already prioritises words with examples)
   const localIds = buildSentenceMeaningIds(
     candidateNewWords,
     candidateWrongWords,
     target,
     allVocabWords
   )
-  const existing = new Set(filtered)
-  const extra = localIds.filter(id => !existing.has(id)).slice(0, target - filtered.length)
-  return [...filtered, ...extra].slice(0, target)
+  const existing = new Set(filteredWithExamples)
+  const need = Math.max(0, target - filteredWithExamples.length)
+  const extra = localIds.filter(id => !existing.has(id)).slice(0, need)
+  return [...filteredWithExamples, ...extra].slice(0, target)
 }
 
 // ── Validate and clean AI response ────────────────────────────────────────────
@@ -660,6 +676,8 @@ export function buildConfusingWordIds(
 }
 
 // ── Enforce confusingWordIds (AI path) ────────────────────────────────────────
+// Only words that have real confusingWords data are kept / supplemented,
+// so the confusing-quiz task always has genuine distractors to show.
 export function enforceConfusingWordIds(
   aiIds: string[],
   target: number,
@@ -671,11 +689,19 @@ export function enforceConfusingWordIds(
 ): string[] {
   if (target <= 0) return []
 
-  // Filter AI IDs to valid vocab entries only
-  const filtered = aiIds.filter(id => validIds.has(id)).slice(0, target)
-  if (filtered.length >= target) return filtered
+  // Build a fast confusingWords-presence lookup
+  const vocabMap = new Map<string, VocabWord>()
+  for (const w of allVocabWords) vocabMap.set(w.id, w)
 
-  // Supplement with local confusing-word candidates
+  const hasRealConfusingWords = (id: string): boolean =>
+    (vocabMap.get(id)?.confusingWords?.length ?? 0) > 0
+
+  // Keep only AI IDs that are valid vocab entries AND have real confusingWords
+  const filteredReal = aiIds.filter(id => validIds.has(id) && hasRealConfusingWords(id))
+
+  if (filteredReal.length >= target) return filteredReal.slice(0, target)
+
+  // Supplement with local candidates (buildConfusingWordIds already checks confusingWords)
   const localIds = buildConfusingWordIds(
     candidateNewWords,
     candidateWrongWords,
@@ -683,7 +709,8 @@ export function enforceConfusingWordIds(
     allVocabWords,
     target
   )
-  const existing = new Set(filtered)
-  const extra = localIds.filter(id => !existing.has(id)).slice(0, target - filtered.length)
-  return [...filtered, ...extra].slice(0, target)
+  const existing = new Set(filteredReal)
+  const need = Math.max(0, target - filteredReal.length)
+  const extra = localIds.filter(id => !existing.has(id)).slice(0, need)
+  return [...filteredReal, ...extra].slice(0, target)
 }
