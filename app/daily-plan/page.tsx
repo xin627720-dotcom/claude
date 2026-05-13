@@ -1,9 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { getTodayMimoPlan, getMimoPlanSettings } from '@/lib/mimoPlan'
+import {
+  getTodayMimoPlan,
+  saveTodayMimoPlan,
+  clearTodayMimoPlan,
+  getMimoPlanSettings,
+  calculateDaysRemaining,
+  calculateDailyNewWordTarget,
+  buildLocalPlanCandidates,
+  generateLocalFallbackPlan,
+  validateAndCleanAiPlan,
+  getEffectiveLimits,
+  todayStr,
+} from '@/lib/mimoPlan'
 import { getWordById } from '@/lib/vocab'
 import { allWords } from '@/lib/vocab'
 import { loadStore } from '@/lib/localStore'
@@ -91,6 +103,8 @@ export default function DailyPlanPage() {
   const [plan, setPlan] = useState<MimoDailyPlan | null>(null)
   const [completedTasks, setCompletedTasks] = useState<MimoTask[]>([])
   const [liveStats, setLiveStats] = useState<{ masteredWords: number; remainingWords: number } | null>(null)
+  const [regenerating, setRegenerating] = useState(false)
+  const [regenMsg, setRegenMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const p = getTodayMimoPlan()
@@ -99,6 +113,98 @@ export default function DailyPlanPage() {
     const store = loadStore()
     const s = calculateLearningStats(allWords.length, store.wordProgress)
     setLiveStats({ masteredWords: s.masteredWords, remainingWords: s.remainingWords })
+  }, [])
+
+  const handleRegenerate = useCallback(async () => {
+    setRegenerating(true)
+    setRegenMsg(null)
+    clearTodayMimoPlan()
+    try {
+      const settings = getMimoPlanSettings()
+      const store = loadStore()
+      const pm = store.wordProgress
+      const { learnedWords, masteredWords, remainingWords } = calculateLearningStats(allWords.length, pm)
+      const daysRemaining = calculateDaysRemaining(settings.targetDate)
+      const { target: dailyNewTarget } = calculateDailyNewWordTarget(
+        allWords.length - learnedWords,
+        daysRemaining,
+        settings.dailyIntensity,
+        settings.dailyNewWordsMode,
+        settings.dailyNewWords
+      )
+      const statsObj = {
+        totalWords: allWords.length,
+        learnedWords,
+        masteredWords,
+        remainingWords,
+        daysRemaining,
+        dailyNewTarget,
+      }
+      const candidates = buildLocalPlanCandidates(pm, allWords, settings)
+      let resultPlan: MimoDailyPlan | null = null
+
+      if (settings.enabled) {
+        try {
+          const body = {
+            date: todayStr(),
+            targetDate: settings.targetDate,
+            daysRemaining,
+            totalWords: allWords.length,
+            learnedWords,
+            masteredWords,
+            remainingWords,
+            dailyNewTarget,
+            intensity: settings.dailyIntensity,
+            candidateNewWords: candidates.candidateNewWords,
+            candidateReviewWords: candidates.candidateReviewWords,
+            candidateWrongWords: candidates.candidateWrongWords,
+            candidateFuzzyWords: candidates.candidateFuzzyWords,
+          }
+          const resp = await fetch('/api/mimo/plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+          if (resp.ok) {
+            const raw = await resp.json()
+            if (raw && !raw.error) {
+              const validIds = new Set(allWords.map(w => w.id))
+              const limits = getEffectiveLimits(settings)
+              const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
+              if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
+                resultPlan = {
+                  ...generateLocalFallbackPlan(settings, statsObj, candidates),
+                  ...cleaned,
+                  date: todayStr(),
+                  targetDate: settings.targetDate,
+                  daysRemaining,
+                  totalWords: allWords.length,
+                  learnedWords,
+                  masteredWords,
+                  remainingWords,
+                  createdBy: 'mimo_ai',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }
+              }
+            }
+          }
+        } catch { /* fall through to local */ }
+      }
+
+      if (!resultPlan) {
+        resultPlan = generateLocalFallbackPlan(settings, statsObj, candidates)
+      }
+
+      saveTodayMimoPlan(resultPlan)
+      setPlan(resultPlan)
+      setRegenMsg('计划已根据你的设置重新生成')
+      setTimeout(() => setRegenMsg(null), 4000)
+    } catch {
+      setRegenMsg('重新生成失败，请重试')
+    } finally {
+      setRegenerating(false)
+    }
   }, [])
 
   const settings = getMimoPlanSettings()
@@ -204,20 +310,42 @@ export default function DailyPlanPage() {
   return (
     <div className="px-4 pt-12 pb-6 animate-fade-up">
       {/* Nav */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-3 mb-3">
         <button onClick={() => router.back()} className="p-2 -ml-2 text-text-secondary active:text-accent">
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-text-primary">Mimo AI 今日计划</h1>
           <p className="text-xs text-text-secondary">{plan.planTitle}</p>
         </div>
         {plan.createdBy === 'local_fallback' && (
-          <span className="ml-auto text-[10px] bg-bg-tertiary text-text-tertiary px-2 py-1 rounded-full">本地计划</span>
+          <span className="text-[10px] bg-bg-tertiary text-text-tertiary px-2 py-1 rounded-full">本地计划</span>
         )}
       </div>
+
+      {/* Adjust / Regenerate toolbar */}
+      <div className="flex gap-2 mb-4">
+        <Link
+          href="/profile#mimo-settings"
+          className="flex-1 py-2 rounded-lg bg-bg-tertiary text-text-secondary text-xs font-medium text-center active:scale-95 transition-all"
+        >
+          ⚙️ 调整计划
+        </Link>
+        <button
+          onClick={handleRegenerate}
+          disabled={regenerating}
+          className="flex-1 py-2 rounded-lg bg-bg-tertiary text-text-secondary text-xs font-medium active:scale-95 transition-all disabled:opacity-50"
+        >
+          {regenerating ? '生成中…' : '🔄 重新生成'}
+        </button>
+      </div>
+      {regenMsg && (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-success/10 text-success text-xs font-medium text-center">
+          ✓ {regenMsg}
+        </div>
+      )}
 
       {/* Goal summary with live stats */}
       <div className="bg-gradient-to-r from-accent/10 to-purple-100 rounded-xl p-4 mb-4">

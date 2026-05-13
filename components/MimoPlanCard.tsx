@@ -15,7 +15,7 @@ import {
   buildLocalPlanCandidates,
   generateLocalFallbackPlan,
   validateAndCleanAiPlan,
-  INTENSITY_LIMITS,
+  getEffectiveLimits,
   todayStr,
 } from '@/lib/mimoPlan'
 import type { MimoDailyPlan } from '@/lib/types'
@@ -48,7 +48,9 @@ export default function MimoPlanCard() {
       const { target: dailyNewTarget, warning } = calculateDailyNewWordTarget(
         allWords.length - learnedWords,
         daysRemaining,
-        settings.dailyIntensity
+        settings.dailyIntensity,
+        settings.dailyNewWordsMode,
+        settings.dailyNewWords
       )
 
       const statsObj = {
@@ -91,7 +93,7 @@ export default function MimoPlanCard() {
             const raw = await resp.json()
             if (raw && !raw.error) {
               const validIds = new Set(allWords.map(w => w.id))
-              const limits = INTENSITY_LIMITS[settings.dailyIntensity]
+              const limits = getEffectiveLimits(settings)
               const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
               if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
                 resultPlan = {
@@ -268,10 +270,10 @@ export default function MimoPlanCard() {
           重新生成
         </button>
         <Link
-          href="/profile"
+          href="/profile#mimo-settings"
           className="px-3 py-2.5 rounded-lg bg-bg-tertiary text-text-secondary text-xs font-medium active:scale-95 transition-all"
         >
-          调整
+          调整计划
         </Link>
       </div>
     </div>
