@@ -1,4 +1,5 @@
 import type { MimoDailyPlan } from './types'
+import { getLocalDateString } from './date'
 
 export type MimoTask = 'review' | 'wrong' | 'fuzzy' | 'new' | 'sentence' | 'confusing'
 
@@ -8,6 +9,7 @@ export interface MimoTaskState {
   updatedAt: string
 }
 
+// Canonical task order: review first (SRS-priority), then new words, then quiz tasks
 export const TASK_SEQUENCE: MimoTask[] = ['review', 'wrong', 'fuzzy', 'new', 'sentence', 'confusing']
 
 export const TASK_META: Record<MimoTask, {
@@ -27,7 +29,7 @@ export const TASK_META: Record<MimoTask, {
 const RUNNER_KEY = 'mimoTaskRunner_v1'
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return getLocalDateString()
 }
 
 function getTodayTaskState(): MimoTaskState {
@@ -91,4 +93,21 @@ export function getDailyPlanCompletionRate(plan: PlanWordCounts): number {
   if (seq.length === 0) return 100
   const done = seq.filter(t => getCompletedTasks().includes(t)).length
   return Math.round((done / seq.length) * 100)
+}
+
+/**
+ * Resets today's task runner state (completed tasks).
+ * Called when regenerating today's plan so old completion state doesn't bleed into the new plan.
+ * Does not affect other dates' history.
+ */
+export function resetTodayTaskRunner(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const fresh: MimoTaskState = {
+      date: todayStr(),
+      completedTasks: [],
+      updatedAt: new Date().toISOString(),
+    }
+    localStorage.setItem(RUNNER_KEY, JSON.stringify(fresh))
+  } catch {}
 }

@@ -8,6 +8,7 @@ import { updateProgressAfterReview, buildReviewQueue, getNextReviewDate } from '
 import { getLearningSession, saveLearningSession, clearLearningSession, updateSessionProgress } from '@/lib/mimoLearningSession'
 import { markTaskComplete, getDailyTaskSequence, getCompletedTasks, TASK_META, type MimoTask } from '@/lib/mimoTaskRunner'
 import { trySyncInBackground } from '@/lib/sync'
+import { getLocalDateString } from '@/lib/date'
 import {
   canUseSpeech,
   speakWordDirect,
@@ -98,7 +99,7 @@ export default function LearnPage() {
 
     if (urlMode.startsWith('mimo-')) {
       try {
-        const today = new Date().toISOString().slice(0, 10)
+        const today = getLocalDateString()
         const raw = localStorage.getItem('mimoDailyPlan_v1')
         if (raw) {
           const plan = JSON.parse(raw)
@@ -110,20 +111,32 @@ export default function LearnPage() {
           }
         }
 
-        // Resume from saved session if available
+        // Resume from saved session only if its wordIds match the current plan's wordIds.
+        // If they differ, the plan was regenerated — clear the old session and start fresh.
         const session = getLearningSession(urlMode)
-        if (session && session.currentIndex > 0 && session.currentIndex < session.wordIds.length) {
+        const sessionMatchesPlan =
+          session !== null &&
+          session.wordIds.length === q.length &&
+          session.wordIds.every((id, idx) => id === q[idx])
+
+        if (sessionMatchesPlan && session && session.currentIndex > 0 && session.currentIndex < session.wordIds.length) {
           q = session.wordIds
           startIndex = session.currentIndex
-        } else if (q.length > 0) {
-          saveLearningSession({
-            date: today,
-            mode: urlMode,
-            wordIds: q,
-            currentIndex: 0,
-            completedWordIds: [],
-            updatedAt: new Date().toISOString(),
-          })
+        } else {
+          // Clear stale session (plan regenerated or first visit) before creating fresh one
+          if (session && !sessionMatchesPlan) {
+            clearLearningSession(urlMode)
+          }
+          if (q.length > 0) {
+            saveLearningSession({
+              date: today,
+              mode: urlMode,
+              wordIds: q,
+              currentIndex: 0,
+              completedWordIds: [],
+              updatedAt: new Date().toISOString(),
+            })
+          }
         }
       } catch {}
     }
@@ -296,7 +309,7 @@ export default function LearnPage() {
             sentenceMeaningWordIds: string[]
             confusingWordIds: string[]
           }
-          const today = new Date().toISOString().slice(0, 10)
+          const today = getLocalDateString()
           if (plan.date === today) {
             const seq = getDailyTaskSequence(plan)
             const completed = getCompletedTasks()

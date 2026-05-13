@@ -21,6 +21,7 @@ import {
   clearLearningSession,
   updateSessionProgress,
 } from '@/lib/mimoLearningSession'
+import { getLocalDateString } from '@/lib/date'
 import type { VocabWord } from '@/lib/types'
 
 function getWordExample(word: VocabWord): { en: string; zh: string } | null {
@@ -62,6 +63,32 @@ function buildOptions(correct: VocabWord, all: VocabWord[]): VocabWord[] {
   return shuffle([correct, ...picks])
 }
 
+/**
+ * Build options for mimo-confusing mode.
+ * Prioritizes actual confusingWords entries from the vocab data as distractors.
+ * Falls back to random options if not enough confusing words found.
+ */
+function buildConfusingOptions(correct: VocabWord, all: VocabWord[]): VocabWord[] {
+  const confusingWordStrings = (correct.confusingWords ?? []).map(cw => cw.word.toLowerCase())
+
+  // Find actual VocabWord objects for confusingWords entries
+  const confusingVocabWords = all.filter(
+    w => w.id !== correct.id && confusingWordStrings.includes(w.word.toLowerCase())
+  )
+
+  // Also find near-meaning words (words that share similar meanings or are in same word family)
+  const distractors: VocabWord[] = [...confusingVocabWords]
+
+  // If we don't have 3 distactors yet, supplement with random words
+  if (distractors.length < 3) {
+    const usedIds = new Set([correct.id, ...distractors.map(w => w.id)])
+    const extras = shuffle(all.filter(w => !usedIds.has(w.id))).slice(0, 3 - distractors.length)
+    distractors.push(...extras)
+  }
+
+  return shuffle([correct, ...distractors.slice(0, 3)])
+}
+
 const QUIZ_MODE_TO_TASK: Record<string, MimoTask> = {
   'mimo-sentence': 'sentence',
   'mimo-confusing': 'confusing',
@@ -86,27 +113,59 @@ export default function QuizPage() {
     const word = getWordById(wordId)
     if (!word) return
     setCorrect(word)
-    setOptions(buildOptions(word, allWords))
+    const urlMode = urlModeRef.current
+    if (urlMode === 'mimo-confusing') {
+      setOptions(buildConfusingOptions(word, allWords))
+    } else {
+      setOptions(buildOptions(word, allWords))
+    }
     setChosen(null)
-    setCurrentExample(urlModeRef.current === 'mimo-sentence' ? getWordExample(word) : null)
+    setCurrentExample(urlMode === 'mimo-sentence' ? getWordExample(word) : null)
   }, [])
 
   useEffect(() => {
-    // Support Mimo daily plan modes via URL param ?mode=mimo-*
     const urlMode = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('mode') ?? ''
       : ''
     urlModeRef.current = urlMode
 
+    const today = getLocalDateString()
+
     // mimo-sentence and mimo-confusing: support resume via mimoLearningSession_v1
     if (urlMode === 'mimo-sentence' || urlMode === 'mimo-confusing') {
+      // Determine the canonical word IDs for this mode from today's plan
+      let planWordIds: string[] = []
+      try {
+        const raw = localStorage.getItem('mimoDailyPlan_v1')
+        if (raw) {
+          const plan = JSON.parse(raw)
+          if (plan.date === today) {
+            if (urlMode === 'mimo-sentence') {
+              // ONLY use sentenceMeaningWordIds — no mixing with confusing/wrong
+              planWordIds = plan.sentenceMeaningWordIds ?? []
+            } else {
+              // mimo-confusing: ONLY use confusingWordIds
+              planWordIds = plan.confusingWordIds ?? []
+            }
+          }
+        }
+      } catch {}
+
+      if (planWordIds.length === 0) {
+        setDone(true)
+        setReady(true)
+        return
+      }
+
+      // Check existing session — only resume if wordIds match the current plan
       const existing = getLearningSession(urlMode)
-      if (
-        existing &&
-        existing.wordIds.length > 0 &&
+      const sessionIsValid =
+        existing !== null &&
+        existing.wordIds.length === planWordIds.length &&
+        existing.wordIds.every((id, idx) => id === planWordIds[idx]) &&
         existing.currentIndex < existing.wordIds.length
-      ) {
-        // Resume from saved position
+
+      if (sessionIsValid && existing) {
         const q = existing.wordIds
         const resumeIndex = existing.currentIndex
         setQueue(q)
@@ -123,75 +182,26 @@ export default function QuizPage() {
         return
       }
 
-      // No valid session — build word list from daily plan
-      let mimoIds: string[] = []
-      try {
-        const raw = localStorage.getItem('mimoDailyPlan_v1')
-        if (raw) {
-          const plan = JSON.parse(raw)
-          const today = new Date().toISOString().slice(0, 10)
-          if (plan.date === today) {
-            if (urlMode === 'mimo-sentence') {
-              const ids: string[] = [
-                ...(plan.sentenceMeaningWordIds ?? []),
-                ...(plan.confusingWordIds ?? []),
-                ...(plan.wrongWordIds ?? []),
-              ]
-              const seen = new Set<string>()
-              mimoIds = ids.filter(id => { if (seen.has(id)) return false; seen.add(id); return true })
-            } else {
-              // mimo-confusing
-              mimoIds = plan.confusingWordIds ?? []
-            }
-          }
-        }
-      } catch {}
-
-      if (mimoIds.length > 0) {
-        const q = mimoIds.slice(0, 20)
-        const now = new Date().toISOString()
-        saveLearningSession({
-          date: now.slice(0, 10),
-          mode: urlMode,
-          wordIds: q,
-          currentIndex: 0,
-          completedWordIds: [],
-          updatedAt: now,
-        })
-        setQueue(q)
-        setIndex(0)
-        saveQuizProgress({ currentQuizQueue: q, currentQuizIndex: 0, answeredWordIds: [], wrongWordIds: [], updatedAt: now })
-        setupQuestion(q, 0)
-      } else {
-        setDone(true)
+      // Clear stale session before creating a fresh one
+      if (existing && !sessionIsValid) {
+        clearLearningSession(urlMode)
       }
-      setReady(true)
-      return
-    }
 
-    // Other mimo modes (mimo-wrong, mimo-fuzzy, etc.) — original logic, no session
-    let mimoIds: string[] = []
-    if (urlMode.startsWith('mimo-')) {
-      try {
-        const raw = localStorage.getItem('mimoDailyPlan_v1')
-        if (raw) {
-          const plan = JSON.parse(raw)
-          const today = new Date().toISOString().slice(0, 10)
-          if (plan.date === today) {
-            if (urlMode === 'mimo-wrong') mimoIds = plan.wrongWordIds ?? []
-            else if (urlMode === 'mimo-fuzzy') mimoIds = plan.fuzzyWordIds ?? []
-          }
-        }
-      } catch {}
-    }
-
-    if (mimoIds.length > 0) {
-      const q = mimoIds.slice(0, 20)
+      // No valid session — create new session from plan word IDs (no slice!)
+      const q = planWordIds
+      const now = new Date().toISOString()
+      saveLearningSession({
+        date: today,
+        mode: urlMode,
+        wordIds: q,
+        currentIndex: 0,
+        completedWordIds: [],
+        updatedAt: now,
+      })
       setQueue(q)
       setIndex(0)
-      saveQuizProgress({ currentQuizQueue: q, currentQuizIndex: 0, answeredWordIds: [], wrongWordIds: [], updatedAt: new Date().toISOString() })
-      if (q.length > 0) setupQuestion(q, 0)
-      else setDone(true)
+      saveQuizProgress({ currentQuizQueue: q, currentQuizIndex: 0, answeredWordIds: [], wrongWordIds: [], updatedAt: now })
+      setupQuestion(q, 0)
       setReady(true)
       return
     }
@@ -315,7 +325,7 @@ export default function QuizPage() {
     const isMimoMode = urlModeRef.current.startsWith('mimo-')
     const currentTask = QUIZ_MODE_TO_TASK[urlModeRef.current] ?? null
 
-    // Compute next unfinished task (current task not yet marked complete in runner)
+    // Compute next unfinished task
     let nextTaskUrl: string | null = null
     if (isMimoMode && currentTask) {
       try {
@@ -330,7 +340,7 @@ export default function QuizPage() {
             sentenceMeaningWordIds: string[]
             confusingWordIds: string[]
           }
-          const today = new Date().toISOString().slice(0, 10)
+          const today = getLocalDateString()
           if (plan.date === today) {
             const seq = getDailyTaskSequence(plan)
             const completed = getCompletedTasks()
@@ -365,7 +375,6 @@ export default function QuizPage() {
                   }
                   if (currentTask) markTaskComplete(currentTask)
                   if (nextTaskUrl) {
-                    // Use full navigation so useEffect re-runs even when pathname is unchanged
                     window.location.href = nextTaskUrl
                   } else {
                     router.push('/daily-plan')
@@ -428,7 +437,10 @@ export default function QuizPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 className="text-base font-semibold text-text-primary">选择测验</h1>
+        <h1 className="text-base font-semibold text-text-primary">
+          {urlModeRef.current === 'mimo-sentence' ? '阅读句中识义' :
+           urlModeRef.current === 'mimo-confusing' ? '易混词辨析' : '选择测验'}
+        </h1>
         <span className="text-sm text-text-secondary">{index + 1}/{queue.length}</span>
       </div>
 
@@ -449,7 +461,11 @@ export default function QuizPage() {
       {/* Question */}
       <div className="bg-white rounded-xl shadow-card p-6 mb-5">
         <p className="text-xs text-text-tertiary mb-2">
-          {urlModeRef.current === 'mimo-sentence' ? '阅读句子，判断加粗词的含义：' : '这个单词的中文意思是？'}
+          {urlModeRef.current === 'mimo-sentence'
+            ? '阅读句子，判断加粗词的含义：'
+            : urlModeRef.current === 'mimo-confusing'
+            ? '选出正确的中文意思（注意区分易混词）：'
+            : '这个单词的中文意思是？'}
         </p>
         {urlModeRef.current === 'mimo-sentence' && currentExample && (
           <p className="text-sm text-text-secondary leading-relaxed italic mb-3 border-l-2 border-accent/40 pl-3">
@@ -469,6 +485,11 @@ export default function QuizPage() {
           )}
         </div>
         <p className="text-sm text-text-tertiary mt-1">{correct.pos}</p>
+        {urlModeRef.current === 'mimo-confusing' && (correct.confusingWords?.length ?? 0) > 0 && (
+          <p className="text-xs text-warning mt-2">
+            ⚠ 注意与 {correct.confusingWords!.map(cw => cw.word).join('、')} 区分
+          </p>
+        )}
       </div>
 
       {/* Options */}

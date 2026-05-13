@@ -1,3 +1,5 @@
+import { getLocalDateString } from './date'
+
 export interface MimoLearningSession {
   date: string
   mode: string
@@ -10,7 +12,7 @@ export interface MimoLearningSession {
 const SESSION_KEY = 'mimoLearningSession_v1'
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return getLocalDateString()
 }
 
 export function getLearningSession(mode: string): MimoLearningSession | null {
@@ -63,5 +65,19 @@ export function updateSessionProgress(
       completedWordIds: ids,
       updatedAt: new Date().toISOString(),
     })
+  } catch {}
+}
+
+/**
+ * Clears all today's mimo learning sessions (all modes).
+ * Called when regenerating today's plan so stale session data doesn't
+ * allow users to "resume" from a position in the old plan.
+ */
+export function clearTodayLearningSessions(): void {
+  if (typeof window === 'undefined') return
+  try {
+    // Simplest safe approach: remove the entire session key.
+    // Sessions from other days aren't stored separately anyway — they expire by date check.
+    localStorage.removeItem(SESSION_KEY)
   } catch {}
 }
