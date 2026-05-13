@@ -29,6 +29,7 @@ export default function ProfilePage() {
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [loginError, setLoginError] = useState('')
+  const [countdown, setCountdown] = useState(0)
   const [goalInput, setGoalInput] = useState('')
   const [clearConfirm, setClearConfirm] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
@@ -48,11 +49,20 @@ export default function ProfilePage() {
     setCustomDateInput(ms.targetDate ?? '')
   }, [syncStatus])
 
+  useEffect(() => {
+    if (countdown <= 0) return
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [countdown])
+
   const handleAutoSpeakToggle = () => {
     const next = !autoSpeakOn
     setAutoSpeakEnabled(next)
     setAutoSpeakOn(next)
   }
+
+  const isRateLimitError = (msg: string) =>
+    /rate.limit|too.many|429|over_email/i.test(msg)
 
   const handleSendCode = async () => {
     setLoginError('')
@@ -60,10 +70,33 @@ export default function ProfilePage() {
     const { error } = await signInWithEmail(email)
     setSending(false)
     if (error) {
-      setLoginError(error)
+      setLoginError(
+        isRateLimitError(error)
+          ? '验证码发送太频繁，请稍后再试。已经收到验证码的话，请直接输入，不要重复发送。'
+          : error
+      )
     } else {
       setCodeSent(true)
       setOtp('')
+      setCountdown(60)
+    }
+  }
+
+  const handleResendCode = async () => {
+    if (countdown > 0 || sending) return
+    setLoginError('')
+    setSending(true)
+    const { error } = await signInWithEmail(email)
+    setSending(false)
+    if (error) {
+      setLoginError(
+        isRateLimitError(error)
+          ? '验证码发送太频繁，请稍后再试。已经收到验证码的话，请直接输入，不要重复发送。'
+          : error
+      )
+    } else {
+      setOtp('')
+      setCountdown(60)
     }
   }
 
@@ -167,10 +200,10 @@ export default function ProfilePage() {
                 {loginError && <p className="text-xs text-danger">{loginError}</p>}
                 <button
                   onClick={handleSendCode}
-                  disabled={!email.includes('@') || sending}
+                  disabled={!email.includes('@') || sending || countdown > 0}
                   className="w-full py-3 rounded-xl bg-accent text-white font-semibold text-sm disabled:opacity-40 active:scale-[0.97] transition-all"
                 >
-                  {sending ? '发送中…' : '发送验证码'}
+                  {sending ? '发送中…' : countdown > 0 ? `重新发送验证码（${countdown}s）` : '发送验证码'}
                 </button>
               </>
             ) : (
@@ -196,6 +229,19 @@ export default function ProfilePage() {
                 >
                   {verifying ? '验证中…' : '验证登录'}
                 </button>
+                {countdown > 0 ? (
+                  <p className="text-xs text-text-tertiary text-center">
+                    重新发送验证码（{countdown}s）
+                  </p>
+                ) : (
+                  <button
+                    onClick={handleResendCode}
+                    disabled={sending}
+                    className="w-full text-xs text-accent text-center active:opacity-70 disabled:opacity-40"
+                  >
+                    重新发送验证码
+                  </button>
+                )}
                 <button
                   onClick={() => { setCodeSent(false); setOtp(''); setLoginError('') }}
                   className="w-full text-xs text-text-tertiary text-center active:opacity-70"
