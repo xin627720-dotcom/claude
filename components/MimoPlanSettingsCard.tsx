@@ -80,11 +80,9 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
   }
 
   const handleSave = async () => {
-    // Compute final targetDate solely from settings.targetDate
-    // (which is kept in sync by handleTargetMode and handleCustomDays)
     const finalDate =
       settings.targetMode === 'custom'
-        ? settings.targetDate  // already updated by handleCustomDays
+        ? settings.targetDate
         : getTargetDateFromMode(settings.targetMode)
 
     const finalNewWords = Math.max(5, Math.min(100, settings.dailyNewWords))
@@ -102,7 +100,13 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
     setSettings(updated)
     onSaved?.()
 
-    // Immediately regenerate today's plan with the new settings
+    // If Mimo is disabled, just save and clear — no plan generation
+    if (!updated.enabled) {
+      setSavedMsg('Mimo AI 今日计划已关闭')
+      return
+    }
+
+    // Enabled: regenerate today's plan with new settings
     setGenerating(true)
     setSavedMsg(null)
     try {
@@ -128,60 +132,58 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
       const candidates = buildLocalPlanCandidates(pm, allWords, updated)
       let resultPlan: MimoDailyPlan | null = null
 
-      if (updated.enabled) {
-        try {
-          const body = {
-            date: todayStr(),
-            targetDate: updated.targetDate,
-            daysRemaining,
-            totalWords: allWords.length,
-            learnedWords,
-            masteredWords,
-            remainingWords,
-            dailyNewTarget,
-            intensity: updated.dailyIntensity,
-            candidateNewWords: candidates.candidateNewWords,
-            candidateReviewWords: candidates.candidateReviewWords,
-            candidateWrongWords: candidates.candidateWrongWords,
-            candidateFuzzyWords: candidates.candidateFuzzyWords,
-          }
-          const resp = await fetch('/api/mimo/plan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          })
-          if (resp.ok) {
-            const raw = await resp.json()
-            if (raw && !raw.error) {
-              const validIds = new Set(allWords.map(w => w.id))
-              const limits = getEffectiveLimits(updated)
-              const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
-              if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
-                const enforcedNewIds = enforceUserNewWordCount(
-                  cleaned.newWordIds ?? [],
-                  updated,
-                  candidates.candidateNewWords
-                )
-                resultPlan = {
-                  ...generateLocalFallbackPlan(updated, statsObj, candidates),
-                  ...cleaned,
-                  newWordIds: enforcedNewIds,
-                  date: todayStr(),
-                  targetDate: updated.targetDate,
-                  daysRemaining,
-                  totalWords: allWords.length,
-                  learnedWords,
-                  masteredWords,
-                  remainingWords,
-                  createdBy: 'mimo_ai',
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
+      try {
+        const body = {
+          date: todayStr(),
+          targetDate: updated.targetDate,
+          daysRemaining,
+          totalWords: allWords.length,
+          learnedWords,
+          masteredWords,
+          remainingWords,
+          dailyNewTarget,
+          intensity: updated.dailyIntensity,
+          candidateNewWords: candidates.candidateNewWords,
+          candidateReviewWords: candidates.candidateReviewWords,
+          candidateWrongWords: candidates.candidateWrongWords,
+          candidateFuzzyWords: candidates.candidateFuzzyWords,
+        }
+        const resp = await fetch('/api/mimo/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (resp.ok) {
+          const raw = await resp.json()
+          if (raw && !raw.error) {
+            const validIds = new Set(allWords.map(w => w.id))
+            const limits = getEffectiveLimits(updated)
+            const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
+            if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
+              const enforcedNewIds = enforceUserNewWordCount(
+                cleaned.newWordIds ?? [],
+                updated,
+                candidates.candidateNewWords
+              )
+              resultPlan = {
+                ...generateLocalFallbackPlan(updated, statsObj, candidates),
+                ...cleaned,
+                newWordIds: enforcedNewIds,
+                date: todayStr(),
+                targetDate: updated.targetDate,
+                daysRemaining,
+                totalWords: allWords.length,
+                learnedWords,
+                masteredWords,
+                remainingWords,
+                createdBy: 'mimo_ai',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
               }
             }
           }
-        } catch { /* fall through to local */ }
-      }
+        }
+      } catch { /* fall through to local */ }
 
       if (!resultPlan) {
         resultPlan = generateLocalFallbackPlan(updated, statsObj, candidates)
@@ -410,25 +412,26 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
             </div>
           )}
 
-          {/* ── 保存状态提示 ──────────────────────────────────── */}
-          {savedMsg && (
-            <div className="mt-3 px-3 py-2 rounded-lg bg-success/10 text-success text-xs font-medium text-center">
-              ✓ {savedMsg}
-            </div>
-          )}
-
-          {/* ── Save button ───────────────────────────────────── */}
-          <button
-            onClick={handleSave}
-            disabled={generating}
-            className={`w-full mt-3 py-2.5 rounded-xl text-sm font-semibold active:scale-[0.97] transition-all disabled:opacity-70 ${
-              generating ? 'bg-accent/70 text-white' : 'bg-accent text-white'
-            }`}
-          >
-            {generating ? '正在生成新计划…' : '保存并重新生成计划'}
-          </button>
         </>
       )}
+
+      {/* ── 保存状态提示（始终可见）────────────────────────── */}
+      {savedMsg && (
+        <div className="mt-3 px-3 py-2 rounded-lg bg-success/10 text-success text-xs font-medium text-center">
+          ✓ {savedMsg}
+        </div>
+      )}
+
+      {/* ── Save button（始终可见，关闭 Mimo 后仍可保存）──── */}
+      <button
+        onClick={handleSave}
+        disabled={generating}
+        className={`w-full mt-3 py-2.5 rounded-xl text-sm font-semibold active:scale-[0.97] transition-all disabled:opacity-70 ${
+          generating ? 'bg-accent/70 text-white' : 'bg-accent text-white'
+        }`}
+      >
+        {generating ? '正在生成新计划…' : settings.enabled ? '保存并重新生成计划' : '保存设置'}
+      </button>
     </div>
   )
 }
