@@ -322,7 +322,12 @@ export default function LearnPage() {
               <button
                 onClick={() => {
                   if (currentTask) markTaskComplete(currentTask)
-                  router.push(nextTaskUrl ?? '/daily-plan')
+                  if (nextTaskUrl) {
+                    // Use full navigation so useEffect re-runs even when pathname is unchanged
+                    window.location.href = nextTaskUrl
+                  } else {
+                    router.push('/daily-plan')
+                  }
                 }}
                 className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
               >
