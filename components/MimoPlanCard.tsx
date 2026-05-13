@@ -63,8 +63,11 @@ export default function MimoPlanCard() {
         dailyNewTarget,
       }
 
-      const candidates = buildLocalPlanCandidates(pm, allWords, settings)
+      const candidates = buildLocalPlanCandidates(pm, allWords, settings, dailyNewTarget)
 
+      // Cap what we send to AI — AI doesn't need huge candidate lists, and sending
+      // hundreds of words wastes tokens. Local fallback uses the full dynamic pool.
+      const AI_CANDIDATE_CAP = 150
       let resultPlan: MimoDailyPlan | null = null
 
       // Try AI if enabled and not suppressed
@@ -80,7 +83,7 @@ export default function MimoPlanCard() {
             remainingWords,
             dailyNewTarget,
             intensity: settings.dailyIntensity,
-            candidateNewWords: candidates.candidateNewWords,
+            candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
             candidateReviewWords: candidates.candidateReviewWords,
             candidateWrongWords: candidates.candidateWrongWords,
             candidateFuzzyWords: candidates.candidateFuzzyWords,
@@ -94,7 +97,7 @@ export default function MimoPlanCard() {
             const raw = await resp.json()
             if (raw && !raw.error) {
               const validIds = new Set(allWords.map(w => w.id))
-              const limits = getEffectiveLimits(settings)
+              const limits = getEffectiveLimits(settings, dailyNewTarget)
               const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
               if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
                 const enforcedNewIds = enforceUserNewWordCount(

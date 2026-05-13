@@ -20,7 +20,6 @@ import {
   enforceUserNewWordCount,
   todayStr,
   addDays,
-  INTENSITY_LIMITS,
 } from '@/lib/mimoPlan'
 import type { MimoPlanSettings, MimoDailyPlan, MimoTargetMode, MimoIntensity } from '@/lib/types'
 
@@ -85,7 +84,7 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
         ? settings.targetDate
         : getTargetDateFromMode(settings.targetMode)
 
-    const finalNewWords = Math.max(5, Math.min(100, settings.dailyNewWords))
+    const finalNewWords = Math.max(1, settings.dailyNewWords)
     const finalReviewLimit = Math.max(10, Math.min(300, settings.dailyReviewLimit))
 
     const updated: MimoPlanSettings = {
@@ -129,7 +128,8 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
         daysRemaining,
         dailyNewTarget,
       }
-      const candidates = buildLocalPlanCandidates(pm, allWords, updated)
+      const candidates = buildLocalPlanCandidates(pm, allWords, updated, dailyNewTarget)
+      const AI_CANDIDATE_CAP = 150
       let resultPlan: MimoDailyPlan | null = null
 
       try {
@@ -143,7 +143,7 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
           remainingWords,
           dailyNewTarget,
           intensity: updated.dailyIntensity,
-          candidateNewWords: candidates.candidateNewWords,
+          candidateNewWords: candidates.candidateNewWords.slice(0, AI_CANDIDATE_CAP),
           candidateReviewWords: candidates.candidateReviewWords,
           candidateWrongWords: candidates.candidateWrongWords,
           candidateFuzzyWords: candidates.candidateFuzzyWords,
@@ -156,9 +156,9 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
         if (resp.ok) {
           const raw = await resp.json()
           if (raw && !raw.error) {
-            const validIds = new Set(allWords.map(w => w.id))
-            const limits = getEffectiveLimits(updated)
-            const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
+              const validIds = new Set(allWords.map(w => w.id))
+              const limits = getEffectiveLimits(updated, dailyNewTarget)
+              const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
             if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
               const enforcedNewIds = enforceUserNewWordCount(
                 cleaned.newWordIds ?? [],
@@ -295,17 +295,16 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
             <div className="flex items-center gap-2 mb-2">
               <input
                 type="number"
-                min="5"
-                max="100"
+                min="1"
                 value={customNewWordsInput}
                 onChange={e => {
                   setCustomNewWordsInput(e.target.value)
                   const n = parseInt(e.target.value, 10)
-                  if (!isNaN(n) && n >= 5 && n <= 100) patch({ dailyNewWords: n })
+                  if (!isNaN(n) && n >= 1) patch({ dailyNewWords: n })
                 }}
-                className="w-20 rounded-lg px-2 py-2 text-xs bg-bg-primary border border-bg-tertiary outline-none focus:border-accent text-text-primary"
+                className="w-24 rounded-lg px-2 py-2 text-xs bg-bg-primary border border-bg-tertiary outline-none focus:border-accent text-text-primary"
               />
-              <span className="text-xs text-text-tertiary">个 / 天（5–100）</span>
+              <span className="text-xs text-text-tertiary">个 / 天（最少 1 个）</span>
             </div>
           )}
           {settings.dailyNewWordsMode === 'auto' && warningInfo && (
@@ -362,9 +361,9 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
           <p className="text-xs font-medium text-text-primary mb-2">学习强度</p>
           <div className="grid grid-cols-3 gap-1.5 mb-3">
             {([
-              { v: 'easy' as MimoIntensity, label: '轻松', sub: `新词≤${INTENSITY_LIMITS.easy.newWords} 复习≤${INTENSITY_LIMITS.easy.reviewWords}` },
-              { v: 'normal' as MimoIntensity, label: '标准', sub: `新词≤${INTENSITY_LIMITS.normal.newWords} 复习≤${INTENSITY_LIMITS.normal.reviewWords}` },
-              { v: 'sprint' as MimoIntensity, label: '冲刺', sub: `新词≤${INTENSITY_LIMITS.sprint.newWords} 复习≤${INTENSITY_LIMITS.sprint.reviewWords}` },
+              { v: 'easy' as MimoIntensity, label: '轻松', sub: '复习较少，节奏轻' },
+              { v: 'normal' as MimoIntensity, label: '标准', sub: '复习适中，平衡推进' },
+              { v: 'sprint' as MimoIntensity, label: '冲刺', sub: '复习更多，适合短期完成' },
             ]).map(({ v, label, sub }) => (
               <button
                 key={v}

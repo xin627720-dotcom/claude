@@ -157,6 +157,8 @@ export function saveTodayProgress(p: MimoPlanProgress): void {
 }
 
 // ── Daily new-word target ──────────────────────────────────────────────────────
+// Intensity no longer caps new-word count. Intensity only affects review limits
+// and estimated minutes. New-word count is driven by target date or manual input.
 export function calculateDailyNewWordTarget(
   remainingUnlearned: number,
   daysRemaining: number,
@@ -164,35 +166,33 @@ export function calculateDailyNewWordTarget(
   mode: 'auto' | 'manual' = 'auto',
   manualTarget?: number
 ): { target: number; capped: boolean; warning: string | null } {
-  const intensityLabel = intensity === 'easy' ? '轻松' : intensity === 'normal' ? '标准' : '冲刺'
-  const cap = INTENSITY_LIMITS[intensity].newWords
-
   if (mode === 'manual' && manualTarget !== undefined && manualTarget > 0) {
-    const overCap = manualTarget > cap
-    return {
-      target: manualTarget,
-      capped: overCap,
-      warning: overCap
-        ? `手动设置每天学 ${manualTarget} 个新词，超过${intensityLabel}模式上限（${cap} 个）。建议调低每日新词数或切换冲刺模式。`
-        : null,
+    let warning: string | null = null
+    if (manualTarget > 200) {
+      warning = `每天 ${manualTarget} 个新词强度很高，可能需要较长学习时间，但系统会按你的目标生成计划。`
+    } else if (manualTarget > 100) {
+      warning = `按当前目标需要每天新学约 ${manualTarget} 个词，任务量较大，建议确认是否要冲刺完成。`
     }
+    return { target: manualTarget, capped: false, warning }
   }
 
-  // Auto mode: calculate based on remaining/days
+  // Auto mode: directly calculate from remaining/days, no intensity cap on new words
   const raw = Math.ceil(remainingUnlearned / Math.max(1, daysRemaining))
-  const capped = raw > cap
-  return {
-    target: Math.min(raw, cap),
-    capped,
-    warning: capped
-      ? `按当前目标每天需学约 ${raw} 个新词，已按${intensityLabel}模式限制为 ${cap} 个。建议延长计划或切换冲刺模式。`
-      : null,
+  let warning: string | null = null
+  if (raw > 200) {
+    warning = `按当前目标每天需新学约 ${raw} 个词，强度很高，系统会按目标生成计划，建议确认是否要冲刺完成。`
+  } else if (raw > 100) {
+    warning = `按当前目标需要每天新学约 ${raw} 个词，任务量较大，建议确认是否要冲刺完成。`
   }
+  // intensity is kept in the signature for call-site compatibility;
+  // it no longer caps new-word count (only review limits and minutes).
+  return { target: raw, capped: false, warning }
 }
 
 // ── Build local candidate word lists ─────────────────────────────────────────
-// Accepts the wordProgress map and all vocab words.
-// Returns prioritised, capped candidate lists — never sends full 2750 to AI.
+// Returns prioritised candidate lists sized to cover the effective daily target.
+// The local-fallback pool is large enough to satisfy even high targets; callers
+// should cap what they send to the AI separately (see AI_CANDIDATE_CAP).
 export function buildLocalPlanCandidates(
   wordProgress: Record<string, {
     status: WordStatus
@@ -203,7 +203,8 @@ export function buildLocalPlanCandidates(
     isWrongWord: boolean
   }>,
   words: VocabWord[],
-  settings: MimoPlanSettings
+  settings: MimoPlanSettings,
+  dailyNewTarget?: number   // effective new-word target for dynamic pool sizing
 ): {
   candidateNewWords: CandidateWord[]
   candidateReviewWords: CandidateWord[]
@@ -258,8 +259,12 @@ export function buildLocalPlanCandidates(
   wrongWords.sort((a, b) => b.wrongCount - a.wrongCount || freqScore(a.frequencyLevel) - freqScore(b.frequencyLevel))
   fuzzyWords.sort((a, b) => b.fuzzyCount - a.fuzzyCount || freqScore(a.frequencyLevel) - freqScore(b.frequencyLevel))
 
+  // Dynamic pool: cover the daily target with a 20% buffer (min 120, max all unseen)
+  const needed = dailyNewTarget ?? 120
+  const newWordPoolSize = Math.min(newWords.length, Math.ceil(needed * 1.2) + 20)
+
   return {
-    candidateNewWords:    newWords.slice(0, 120),
+    candidateNewWords:    newWords.slice(0, Math.max(120, newWordPoolSize)),
     candidateReviewWords: reviewWords.slice(0, 150),
     candidateWrongWords:  wrongWords.slice(0, 50),
     candidateFuzzyWords:  fuzzyWords.slice(0, 50),
@@ -279,14 +284,10 @@ export function generateLocalFallbackPlan(
   const now = new Date().toISOString()
 
   // Resolve effective new-word count based on mode
-  let effectiveNewTarget: number
-  if (settings.dailyNewWordsMode === 'manual') {
-    // Manual mode: use user setting; only cap by intensity when allowAiAdjust is off
-    effectiveNewTarget = settings.dailyNewWords
-  } else {
-    // Auto mode: use calculated target capped by intensity
-    effectiveNewTarget = Math.min(stats.dailyNewTarget, limits.newWords)
-  }
+  // Intensity no longer caps new words — it only affects review limits and minutes.
+  const effectiveNewTarget: number = settings.dailyNewWordsMode === 'manual'
+    ? settings.dailyNewWords
+    : stats.dailyNewTarget  // use the calculated target directly
 
   // Effective review cap: respect user's dailyReviewLimit and intensity
   const effectiveReviewCap = Math.min(settings.dailyReviewLimit, limits.reviewWords)
@@ -360,31 +361,43 @@ export function enforceUserNewWordCount(
   settings: MimoPlanSettings,
   candidateNewWords: CandidateWord[]
 ): string[] {
-  if (settings.dailyNewWordsMode !== 'manual' || settings.allowAiAdjust) {
-    return aiNewWordIds
-  }
+  if (settings.dailyNewWordsMode !== 'manual') return aiNewWordIds
+
   const target = settings.dailyNewWords
-  if (aiNewWordIds.length === target) return aiNewWordIds
-  if (aiNewWordIds.length > target) return aiNewWordIds.slice(0, target)
-  // Too few — supplement with top candidates not already in AI list
-  const aiSet = new Set(aiNewWordIds)
+  // Always trim if AI returned more than target
+  const trimmed = aiNewWordIds.length > target ? aiNewWordIds.slice(0, target) : aiNewWordIds
+
+  if (settings.allowAiAdjust) {
+    // Soft enforcement: accept AI result if it reached at least 80% of target
+    if (trimmed.length >= Math.floor(target * 0.8)) return trimmed
+  } else {
+    // Strict enforcement: must match target exactly (if enough candidates)
+    if (trimmed.length === target) return trimmed
+  }
+
+  // Supplement from candidates to reach target
+  const existing = new Set(trimmed)
   const extra = candidateNewWords
-    .filter(w => !aiSet.has(w.id))
-    .slice(0, target - aiNewWordIds.length)
+    .filter(w => !existing.has(w.id))
+    .slice(0, target - trimmed.length)
     .map(w => w.id)
-  return [...aiNewWordIds, ...extra]
+  return [...trimmed, ...extra]
 }
 
 // ── Compute effective limits that respect user settings ───────────────────────
 export interface IntensityLimit { newWords: number; reviewWords: number; minMin: number; maxMin: number }
 
-export function getEffectiveLimits(settings: MimoPlanSettings): IntensityLimit {
+// dailyNewTarget: pass the pre-computed target so AI validation uses the real value.
+// For auto mode this is Math.ceil(remaining/days); for manual it's settings.dailyNewWords.
+export function getEffectiveLimits(
+  settings: MimoPlanSettings,
+  dailyNewTarget?: number
+): IntensityLimit {
   const base = INTENSITY_LIMITS[settings.dailyIntensity]
-  // In manual mode, let user's explicit dailyNewWords be the cap (may exceed intensity)
   const effectiveNew = settings.dailyNewWordsMode === 'manual'
     ? settings.dailyNewWords
-    : base.newWords
-  // dailyReviewLimit is always an upper bound; also cap by intensity
+    : (dailyNewTarget ?? base.newWords)  // use real target; fall back to intensity hint
+  // dailyReviewLimit is a user ceiling; also cap by intensity
   const effectiveReview = Math.min(settings.dailyReviewLimit, base.reviewWords)
   return { ...base, newWords: effectiveNew, reviewWords: effectiveReview }
 }
