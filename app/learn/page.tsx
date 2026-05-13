@@ -6,7 +6,7 @@ import { allWords, getWordById } from '@/lib/vocab'
 import { getWordProgress, saveWordProgress, getUserStats, saveUserStats, saveWrongWord, getWrongWords } from '@/lib/localStore'
 import { updateProgressAfterReview, buildReviewQueue, getNextReviewDate } from '@/lib/review'
 import { getLearningSession, saveLearningSession, clearLearningSession, updateSessionProgress } from '@/lib/mimoLearningSession'
-import { markTaskComplete, type MimoTask } from '@/lib/mimoTaskRunner'
+import { markTaskComplete, getDailyTaskSequence, getCompletedTasks, TASK_META, type MimoTask } from '@/lib/mimoTaskRunner'
 import { trySyncInBackground } from '@/lib/sync'
 import {
   canUseSpeech,
@@ -279,6 +279,37 @@ export default function LearnPage() {
       'mimo-review': 'review', 'mimo-wrong': 'wrong',
       'mimo-fuzzy': 'fuzzy', 'mimo-new': 'new',
     }
+    const currentTask = learnModeToTask[urlModeRef.current] ?? null
+
+    // Compute next unfinished task (current task not yet marked complete in runner)
+    let nextTaskUrl: string | null = null
+    if (isMimoMode && currentTask) {
+      try {
+        const raw = typeof window !== 'undefined' ? localStorage.getItem('mimoDailyPlan_v1') : null
+        if (raw) {
+          const plan = JSON.parse(raw) as {
+            date: string
+            reviewWordIds: string[]
+            wrongWordIds: string[]
+            fuzzyWordIds: string[]
+            newWordIds: string[]
+            sentenceMeaningWordIds: string[]
+            confusingWordIds: string[]
+          }
+          const today = new Date().toISOString().slice(0, 10)
+          if (plan.date === today) {
+            const seq = getDailyTaskSequence(plan)
+            const completed = getCompletedTasks()
+            const next = seq.find(t => !completed.includes(t) && t !== currentTask) ?? null
+            if (next) {
+              const meta = TASK_META[next]
+              nextTaskUrl = `/${meta.page}?mode=${meta.mode}`
+            }
+          }
+        }
+      } catch {}
+    }
+
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center animate-fade-up">
         <div className="text-6xl mb-4">🎉</div>
@@ -287,16 +318,33 @@ export default function LearnPage() {
         <p className="text-sm text-text-tertiary mb-8">继续保持，明天进步更大！</p>
         <div className="flex flex-col gap-3 w-full max-w-xs">
           {isMimoMode ? (
-            <button
-              onClick={() => {
-                const task = learnModeToTask[urlModeRef.current]
-                if (task) markTaskComplete(task)
-                router.push('/daily-plan')
-              }}
-              className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
-            >
-              返回今日计划
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  if (currentTask) markTaskComplete(currentTask)
+                  if (nextTaskUrl) {
+                    // Use full navigation so useEffect re-runs even when pathname is unchanged
+                    window.location.href = nextTaskUrl
+                  } else {
+                    router.push('/daily-plan')
+                  }
+                }}
+                className="bg-accent text-white rounded-xl py-3 font-semibold active:scale-[0.97] transition-all"
+              >
+                {nextTaskUrl ? '继续下一个任务' : '完成今日计划'}
+              </button>
+              {nextTaskUrl && (
+                <button
+                  onClick={() => {
+                    if (currentTask) markTaskComplete(currentTask)
+                    router.push('/daily-plan')
+                  }}
+                  className="bg-white text-text-primary rounded-xl py-3 font-semibold shadow-card active:scale-[0.97] transition-all"
+                >
+                  返回今日计划
+                </button>
+              )}
+            </>
           ) : (
             <button
               onClick={() => {
