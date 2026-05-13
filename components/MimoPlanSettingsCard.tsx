@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { allWords } from '@/lib/vocab'
 import { loadStore } from '@/lib/localStore'
+import { calculateLearningStats } from '@/lib/stats'
 import {
   getMimoPlanSettings,
   saveMimoPlanSettings,
@@ -10,12 +11,18 @@ import {
   calculateDaysRemaining,
   calculateDailyNewWordTarget,
   getTargetDateFromMode,
+  saveTodayMimoPlan,
   clearTodayMimoPlan,
+  buildLocalPlanCandidates,
+  generateLocalFallbackPlan,
+  validateAndCleanAiPlan,
+  getEffectiveLimits,
+  enforceUserNewWordCount,
   todayStr,
   addDays,
   INTENSITY_LIMITS,
 } from '@/lib/mimoPlan'
-import type { MimoPlanSettings, MimoTargetMode, MimoIntensity } from '@/lib/types'
+import type { MimoPlanSettings, MimoDailyPlan, MimoTargetMode, MimoIntensity } from '@/lib/types'
 
 const REVIEW_LIMIT_OPTIONS = [20, 50, 100, 150] as const
 const DAILY_MINUTES_OPTIONS = [10, 20, 30, 45, 60] as const
@@ -26,16 +33,16 @@ interface Props {
 
 export default function MimoPlanSettingsCard({ onSaved }: Props) {
   const [settings, setSettings] = useState<MimoPlanSettings>(getDefaultSettings)
-  const [customDateInput, setCustomDateInput] = useState('')
   const [customReviewInput, setCustomReviewInput] = useState('')
   const [customNewWordsInput, setCustomNewWordsInput] = useState('')
-  const [saved, setSaved] = useState(false)
+  // targetDaysInput is the only source of truth for the custom-days text field
   const [targetDaysInput, setTargetDaysInput] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [savedMsg, setSavedMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const ms = getMimoPlanSettings()
     setSettings(ms)
-    setCustomDateInput(ms.targetDate ?? '')
     setCustomReviewInput(String(ms.dailyReviewLimit))
     setCustomNewWordsInput(String(ms.dailyNewWords))
     setTargetDaysInput(
@@ -47,16 +54,23 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
 
   const patch = (p: Partial<MimoPlanSettings>) => {
     setSettings(prev => ({ ...prev, ...p }))
-    setSaved(false)
+    setSavedMsg(null)
   }
 
   const handleTargetMode = (mode: MimoTargetMode) => {
-    const targetDate = mode === 'custom'
-      ? (customDateInput || addDays(todayStr(), 90))
-      : getTargetDateFromMode(mode)
-    patch({ targetMode: mode, targetDate })
+    if (mode === 'custom') {
+      // Keep the targetDate already set, or default to 90 days from now
+      const days = parseInt(targetDaysInput, 10)
+      const resolvedDate = (!isNaN(days) && days >= 1)
+        ? addDays(todayStr(), days)
+        : settings.targetDate ?? addDays(todayStr(), 90)
+      patch({ targetMode: 'custom', targetDate: resolvedDate })
+    } else {
+      patch({ targetMode: mode, targetDate: getTargetDateFromMode(mode) })
+    }
   }
 
+  // Updating the custom-days number input: directly update targetDate in state
   const handleCustomDays = (val: string) => {
     setTargetDaysInput(val)
     const days = parseInt(val, 10)
@@ -65,10 +79,12 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Compute final targetDate solely from settings.targetDate
+    // (which is kept in sync by handleTargetMode and handleCustomDays)
     const finalDate =
       settings.targetMode === 'custom'
-        ? (customDateInput || settings.targetDate)
+        ? settings.targetDate  // already updated by handleCustomDays
         : getTargetDateFromMode(settings.targetMode)
 
     const finalNewWords = Math.max(5, Math.min(100, settings.dailyNewWords))
@@ -84,9 +100,100 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
     saveMimoPlanSettings(updated)
     clearTodayMimoPlan()
     setSettings(updated)
-    setSaved(true)
     onSaved?.()
-    setTimeout(() => setSaved(false), 3000)
+
+    // Immediately regenerate today's plan with the new settings
+    setGenerating(true)
+    setSavedMsg(null)
+    try {
+      const store = loadStore()
+      const pm = store.wordProgress
+      const { learnedWords, masteredWords, remainingWords } = calculateLearningStats(allWords.length, pm)
+      const daysRemaining = calculateDaysRemaining(updated.targetDate)
+      const { target: dailyNewTarget } = calculateDailyNewWordTarget(
+        allWords.length - learnedWords,
+        daysRemaining,
+        updated.dailyIntensity,
+        updated.dailyNewWordsMode,
+        updated.dailyNewWords
+      )
+      const statsObj = {
+        totalWords: allWords.length,
+        learnedWords,
+        masteredWords,
+        remainingWords,
+        daysRemaining,
+        dailyNewTarget,
+      }
+      const candidates = buildLocalPlanCandidates(pm, allWords, updated)
+      let resultPlan: MimoDailyPlan | null = null
+
+      if (updated.enabled) {
+        try {
+          const body = {
+            date: todayStr(),
+            targetDate: updated.targetDate,
+            daysRemaining,
+            totalWords: allWords.length,
+            learnedWords,
+            masteredWords,
+            remainingWords,
+            dailyNewTarget,
+            intensity: updated.dailyIntensity,
+            candidateNewWords: candidates.candidateNewWords,
+            candidateReviewWords: candidates.candidateReviewWords,
+            candidateWrongWords: candidates.candidateWrongWords,
+            candidateFuzzyWords: candidates.candidateFuzzyWords,
+          }
+          const resp = await fetch('/api/mimo/plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+          if (resp.ok) {
+            const raw = await resp.json()
+            if (raw && !raw.error) {
+              const validIds = new Set(allWords.map(w => w.id))
+              const limits = getEffectiveLimits(updated)
+              const cleaned = validateAndCleanAiPlan(raw, validIds, limits)
+              if (cleaned && ((cleaned.newWordIds?.length ?? 0) + (cleaned.reviewWordIds?.length ?? 0)) > 0) {
+                const enforcedNewIds = enforceUserNewWordCount(
+                  cleaned.newWordIds ?? [],
+                  updated,
+                  candidates.candidateNewWords
+                )
+                resultPlan = {
+                  ...generateLocalFallbackPlan(updated, statsObj, candidates),
+                  ...cleaned,
+                  newWordIds: enforcedNewIds,
+                  date: todayStr(),
+                  targetDate: updated.targetDate,
+                  daysRemaining,
+                  totalWords: allWords.length,
+                  learnedWords,
+                  masteredWords,
+                  remainingWords,
+                  createdBy: 'mimo_ai',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }
+              }
+            }
+          }
+        } catch { /* fall through to local */ }
+      }
+
+      if (!resultPlan) {
+        resultPlan = generateLocalFallbackPlan(updated, statsObj, candidates)
+      }
+
+      saveTodayMimoPlan(resultPlan)
+      setSavedMsg('计划已根据你的设置重新生成')
+    } catch {
+      setSavedMsg('设置已保存，请回到首页重新生成计划')
+    } finally {
+      setGenerating(false)
+    }
   }
 
   // Warning calculation
@@ -151,18 +258,18 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
               自定义
             </button>
             {settings.targetMode === 'custom' && (
-              <input
-                type="number"
-                min="1"
-                max="730"
-                value={targetDaysInput}
-                onChange={e => handleCustomDays(e.target.value)}
-                placeholder="天数"
-                className="w-20 rounded-lg px-2 py-2 text-xs bg-bg-primary border border-bg-tertiary outline-none focus:border-accent text-text-primary"
-              />
-            )}
-            {settings.targetMode === 'custom' && (
-              <span className="text-xs text-text-tertiary">天后完成</span>
+              <>
+                <input
+                  type="number"
+                  min="1"
+                  max="730"
+                  value={targetDaysInput}
+                  onChange={e => handleCustomDays(e.target.value)}
+                  placeholder="天数"
+                  className="w-20 rounded-lg px-2 py-2 text-xs bg-bg-primary border border-bg-tertiary outline-none focus:border-accent text-text-primary"
+                />
+                <span className="text-xs text-text-tertiary">天后完成</span>
+              </>
             )}
           </div>
 
@@ -272,7 +379,7 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
           {([
             { key: 'preferHighFrequency' as const, label: '高频词优先', sub: '优先安排高频考点词' },
             { key: 'preferWrongWords' as const, label: '错词优先', sub: '优先复习错词和模糊词' },
-            { key: 'allowAiAdjust' as const, label: '允许 AI 自动调整任务量', sub: '开启后 AI 可在强度上限内灵活调整' },
+            { key: 'allowAiAdjust' as const, label: '允许 AI 自动调整任务量', sub: '关闭后严格按手动新词数生成计划' },
             { key: 'autoGenerateDailyPlan' as const, label: '每天自动生成计划', sub: '首次打开时自动生成今日计划' },
           ]).map(({ key, label, sub }) => (
             <div key={key} className="flex items-center justify-between py-2.5 border-t border-bg-tertiary">
@@ -303,12 +410,22 @@ export default function MimoPlanSettingsCard({ onSaved }: Props) {
             </div>
           )}
 
+          {/* ── 保存状态提示 ──────────────────────────────────── */}
+          {savedMsg && (
+            <div className="mt-3 px-3 py-2 rounded-lg bg-success/10 text-success text-xs font-medium text-center">
+              ✓ {savedMsg}
+            </div>
+          )}
+
           {/* ── Save button ───────────────────────────────────── */}
           <button
             onClick={handleSave}
-            className={`w-full mt-4 py-2.5 rounded-xl text-sm font-semibold active:scale-[0.97] transition-all ${saved ? 'bg-success text-white' : 'bg-accent text-white'}`}
+            disabled={generating}
+            className={`w-full mt-3 py-2.5 rounded-xl text-sm font-semibold active:scale-[0.97] transition-all disabled:opacity-70 ${
+              generating ? 'bg-accent/70 text-white' : 'bg-accent text-white'
+            }`}
           >
-            {saved ? '✓ 已保存，今日计划将重新生成' : '保存计划设置'}
+            {generating ? '正在生成新计划…' : '保存并重新生成计划'}
           </button>
         </>
       )}

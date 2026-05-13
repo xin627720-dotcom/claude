@@ -351,6 +351,30 @@ export function generateLocalFallbackPlan(
   }
 }
 
+// ── Enforce manual new-word count when allowAiAdjust is off ──────────────────
+// If the user set manual mode AND allowAiAdjust===false, the AI result's
+// newWordIds must be exactly dailyNewWords items (trim if too many, supplement
+// from candidateNewWords if too few).
+export function enforceUserNewWordCount(
+  aiNewWordIds: string[],
+  settings: MimoPlanSettings,
+  candidateNewWords: CandidateWord[]
+): string[] {
+  if (settings.dailyNewWordsMode !== 'manual' || settings.allowAiAdjust) {
+    return aiNewWordIds
+  }
+  const target = settings.dailyNewWords
+  if (aiNewWordIds.length === target) return aiNewWordIds
+  if (aiNewWordIds.length > target) return aiNewWordIds.slice(0, target)
+  // Too few — supplement with top candidates not already in AI list
+  const aiSet = new Set(aiNewWordIds)
+  const extra = candidateNewWords
+    .filter(w => !aiSet.has(w.id))
+    .slice(0, target - aiNewWordIds.length)
+    .map(w => w.id)
+  return [...aiNewWordIds, ...extra]
+}
+
 // ── Compute effective limits that respect user settings ───────────────────────
 export interface IntensityLimit { newWords: number; reviewWords: number; minMin: number; maxMin: number }
 
