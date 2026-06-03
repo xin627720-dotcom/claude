@@ -16,6 +16,9 @@ set(APP_REQUIRES
     "esp-tls"
     "mbedtls"
     "esp_websocket_client"
+    "esp_https_ota"
+    "app_update"
+    "esp_http_client"
 )
 if(CONFIG_APP_HAL_ST7789)
     list(APPEND APP_REQUIRES "esp_lcd" "esp_lvgl_port")
@@ -32,6 +35,7 @@ idf_component_register(
         "net.c"
         "audio.c"
         "camera.c"
+        "ota.c"
         ${HAL_SRC}
     INCLUDE_DIRS "."
     REQUIRES ${APP_REQUIRES}

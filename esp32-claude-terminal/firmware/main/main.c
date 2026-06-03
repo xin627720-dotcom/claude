@@ -8,6 +8,7 @@
 #include "app.h"
 #include "audio.h"
 #include "camera.h"
+#include "ota.h"
 #include "wifi.h"
 
 void app_main(void)
@@ -24,6 +25,8 @@ void app_main(void)
 
     hal_init();
     hal_display_status(HAL_UI_BOOT, NULL);
+
+    ota_mark_valid(); // 正常启动到这里 → 取消 OTA 回滚
 
     app_start();    // 先建事件队列（音频按键任务会往里投递）
     audio_init();

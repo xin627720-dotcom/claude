@@ -33,6 +33,8 @@ export const config = {
   port: int(E.PORT, 8787),
   wsPath: E.WS_PATH || "/agent",
   authToken: E.AUTH_TOKEN || "",
+  publicUrl: E.PUBLIC_URL || "", // OTA 固件下载的公网基址（一般是 cloudflared 隧道）
+  firmwareDir: E.FIRMWARE_DIR || "firmware-bin",
 
   workspaceDir: E.WORKSPACE_DIR || process.cwd(),
   permissionMode: E.PERMISSION_MODE || "acceptEdits",

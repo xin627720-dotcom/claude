@@ -1,6 +1,7 @@
 #include "net.h"
 #include "app.h"
 #include "audio.h"
+#include "ota.h"
 #include "protocol.h"
 #include "app_config.h"
 
@@ -126,6 +127,9 @@ static void on_json(const char *data, int len)
             app_post(APP_EV_TTS_BEGIN, NULL, cJSON_IsNumber(x) ? x->valueint : APP_AUDIO_SAMPLE_RATE);
         } else if (!strcmp(t, "tts_end")) {
             app_post(APP_EV_TTS_END, NULL, 0);
+        } else if (!strcmp(t, "ota")) {
+            const cJSON *u = cJSON_GetObjectItem(root, "url");
+            if (cJSON_IsString(u)) ota_start(u->valuestring); // B 路线：下载新固件并重启进入
         }
         // "pong" 等忽略
     }

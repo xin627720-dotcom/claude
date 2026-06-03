@@ -36,6 +36,7 @@ export type ServerMsg =
   | { t: "app_open"; name: string; w: number; h: number }
   | { t: "app_frame"; ops: Array<Array<string | number>> }
   | { t: "app_close" }
+  | { t: "ota"; url: string }
   | { t: "error"; msg: string }
   | { t: "pong" };
 

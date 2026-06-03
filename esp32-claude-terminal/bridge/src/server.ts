@@ -4,7 +4,7 @@
 import { createServer, type IncomingMessage } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve, basename } from "node:path";
 import { WebSocketServer, WebSocket } from "ws";
 import { config } from "./config.js";
 import * as proto from "./protocol.js";
@@ -16,6 +16,7 @@ import { synthesize } from "./tts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_INDEX = join(__dirname, "..", "web", "index.html");
+const FIRMWARE_DIR = resolve(config.firmwareDir); // OTA .bin 目录
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -109,6 +110,14 @@ class Hub {
       this.app
         .start(cmd.slice(6).trim())
         .catch((e) => this.broadcast({ t: "error", msg: `加载应用失败: ${errMsg(e)}` }));
+      return;
+    }
+    if (cmd.startsWith("/ota ")) {
+      const arg = cmd.slice(5).trim();
+      const base = config.publicUrl || `http://${config.host}:${config.port}`;
+      const url = /^https?:\/\//.test(arg) ? arg : `${base}/firmware/${encodeURIComponent(arg)}`;
+      this.broadcast({ t: "user", text: cmd, from });
+      this.broadcast({ t: "ota", url }); // 设备下载该固件并重启进入（B 路线）
       return;
     }
     this.broadcast({ t: "user", text, from }); // 回显到所有显示端（含 ESP32 聊天框）
@@ -275,6 +284,17 @@ const server = createServer((req, res) => {
   if (path === "/" || path === "/index.html") {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(webIndex);
+  } else if (path.startsWith("/firmware/")) {
+    // 提供 OTA 固件 .bin（设备据此下载）。basename + 前缀校验，防目录穿越。
+    const name = basename(path.slice("/firmware/".length));
+    const file = resolve(FIRMWARE_DIR, name);
+    if (name && file.startsWith(FIRMWARE_DIR) && existsSync(file)) {
+      res.writeHead(200, { "content-type": "application/octet-stream" });
+      res.end(readFileSync(file));
+    } else {
+      res.writeHead(404);
+      res.end("not found");
+    }
   } else {
     res.writeHead(404);
     res.end("not found");
