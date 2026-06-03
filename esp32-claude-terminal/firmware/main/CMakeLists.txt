@@ -1,0 +1,21 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "app.c"
+        "wifi.c"
+        "net.c"
+        "audio.c"
+        "hal_console.c"
+    INCLUDE_DIRS "."
+    REQUIRES
+        "nvs_flash"
+        "esp_wifi"
+        "esp_netif"
+        "esp_event"
+        "esp_timer"
+        "driver"
+        "json"
+        "esp-tls"
+        "mbedtls"
+        "esp_websocket_client"
+)

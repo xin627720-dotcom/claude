@@ -1,0 +1,21 @@
+# 默认配置。idf.py 首次构建会据此生成 sdkconfig；可再用 menuconfig 调整。
+CONFIG_IDF_TARGET="esp32s3"
+
+# 自定义分区表（见 partitions.csv）
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Flash 大小：按你的板子改（4MB/8MB/16MB）。
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+
+# wss:// 需要校验服务器证书 —— 启用内置 CA 证书包。
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+
+# 给主任务多点栈（TLS 握手 + JSON 解析）。
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+
+# 注意：TLS + 音频缓冲建议开启 PSRAM，但 PSRAM 模式（quad/octal）与板子强相关，
+# 设错会导致启动失败，故这里不强制。请按你的模组在 menuconfig 里开启：
+#   Component config → ESP PSRAM → Support for external SPI RAM
+# 纯文本链路（CONSOLE HAL）不开 PSRAM 也能跑。

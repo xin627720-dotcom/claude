@@ -1,0 +1,62 @@
+menu "Claude 终端配置"
+
+config APP_WIFI_SSID
+    string "WiFi SSID"
+    default "myssid"
+
+config APP_WIFI_PASSWORD
+    string "WiFi 密码"
+    default "mypassword"
+
+config APP_BRIDGE_URI
+    string "桥接 WebSocket 地址"
+    default "wss://your-tunnel.trycloudflare.com/agent"
+    help
+      cloudflared 暴露出的 wss 地址 + 路径。例： wss://xxx.trycloudflare.com/agent
+
+config APP_BRIDGE_TOKEN
+    string "桥接鉴权 token"
+    default ""
+    help
+      与 bridge 的 .env AUTH_TOKEN 相同。非空时作为 ?token= 附加到地址后。
+
+config APP_ENABLE_AUDIO
+    bool "启用音频（麦克风采集 + 扬声器播放）"
+    default y
+    help
+      关闭即纯文本链路（先打通 WiFi+WSS+Claude）。开启需配置下面的 I2S 引脚。
+
+config APP_AUDIO_SAMPLE_RATE
+    int "麦克风采样率 (Hz)"
+    default 16000
+
+menu "I2S / 按键 引脚"
+    depends on APP_ENABLE_AUDIO
+
+    config APP_PTT_GPIO
+        int "按住说话(PTT) 按钮 GPIO"
+        default 0
+        help 按住录音、松开发送。多数板子的 BOOT 键是 GPIO0。
+
+    config APP_I2S_MIC_BCK
+        int "麦克风 I2S BCLK GPIO"
+        default 41
+    config APP_I2S_MIC_WS
+        int "麦克风 I2S WS/LRCK GPIO"
+        default 42
+    config APP_I2S_MIC_DIN
+        int "麦克风 I2S DATA-IN GPIO"
+        default 2
+
+    config APP_I2S_SPK_BCK
+        int "扬声器 I2S BCLK GPIO"
+        default 15
+    config APP_I2S_SPK_WS
+        int "扬声器 I2S WS/LRCK GPIO"
+        default 16
+    config APP_I2S_SPK_DOUT
+        int "扬声器 I2S DATA-OUT GPIO"
+        default 17
+endmenu
+
+endmenu
