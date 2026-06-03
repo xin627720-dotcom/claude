@@ -25,6 +25,7 @@ idf.py menuconfig
 #     WiFi SSID / 密码
 #     桥接 WebSocket 地址 = wss://<你的tunnel>.trycloudflare.com/agent
 #     桥接鉴权 token     = 与 bridge .env 的 AUTH_TOKEN 相同
+#     显示 HAL 选 CONSOLE   ← 先用串口、不上屏（也不拉 LVGL）
 #     取消勾选「启用音频」   ← 先关掉，纯文本链路
 idf.py build flash monitor
 ```
@@ -49,11 +50,12 @@ Claude 终端配置 → I2S / 按键 引脚
 接线与常见模组（INMP441 数字麦、MAX98357A 功放）见 [`../docs/HARDWARE.md`](../docs/HARDWARE.md)。
 **按住** PTT 按钮说话、**松开**发送；屏幕/串口显示识别文本与回答，扬声器播放 TTS。
 
-## 第三步：上真屏
+## 第三步：上屏（默认已是 ST7789）
 
-当前显示走 `hal_console.c`（串口日志）。要上屏，照 `hal.h` 实现一份 HAL（如 `hal_st7789.c`），
-在 `main/CMakeLists.txt` 里换掉 `hal_console.c` 即可。推荐 `esp_lcd` + LVGL，
-渲染三块：顶部状态行、用户话、流式回答。细节见 `docs/HARDWARE.md`。
+GOOUUU 套件那块 **1.54" ST7789** 已实现（`hal_st7789.c`，esp_lcd + LVGL），且为默认 HAL，
+渲染三块：状态行 / 你说的话 / 流式回答。接线见 `docs/HARDWARE.md`（屏幕用空闲脚 47/48/1/21/2/3）。
+显示**中文**需自备 CJK 字体（HARDWARE.md 有说明）；配好之前，回答靠扬声器 TTS + 串口照样完整。
+想纯链路调试时，在 menuconfig 把「显示 HAL」选回 CONSOLE 即可（也不再拉 LVGL）。
 
 ## 代码结构
 
@@ -64,7 +66,8 @@ Claude 终端配置 → I2S / 按键 引脚
 | `net.c` | WebSocket 客户端（ws/wss）、JSON 收发、TTS 音频帧路由到播放 |
 | `wifi.c` | WiFi station |
 | `audio.c` | I2S 麦克风采集（PTT）+ 扬声器播放（环形缓冲），可整体关闭 |
-| `hal_console.c` | 显示 HAL 的参考实现（串口）。换屏就换这一个文件 |
+| `hal_st7789.c` | 显示 HAL：1.54" ST7789（esp_lcd + LVGL），**默认启用** |
+| `hal_console.c` | 显示 HAL：串口日志（menuconfig 选 CONSOLE 时用，链路调试） |
 | `protocol.h` | 与桥接一致的消息常量/帧头 |
 | `Kconfig.projbuild` | menuconfig 配置项 |
 

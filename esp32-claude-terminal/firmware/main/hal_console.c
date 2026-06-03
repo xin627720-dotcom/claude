@@ -2,6 +2,8 @@
 // 用途：先把 WiFi + WSS + Claude 链路打通。要上真屏，照此实现一份 hal_xxx.c 即可
 // （建议用 esp_lcd + LVGL；见 docs/HARDWARE.md）。
 #include "hal.h"
+#include "sdkconfig.h"
+#if CONFIG_APP_HAL_CONSOLE
 #include <stdio.h>
 #include "esp_log.h"
 
@@ -56,3 +58,5 @@ void hal_display_response_end(void)
     printf("\n");
     fflush(stdout);
 }
+
+#endif // CONFIG_APP_HAL_CONSOLE

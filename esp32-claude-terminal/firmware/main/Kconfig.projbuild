@@ -20,43 +20,82 @@ config APP_BRIDGE_TOKEN
     help
       与 bridge 的 .env AUTH_TOKEN 相同。非空时作为 ?token= 附加到地址后。
 
+choice APP_HAL
+    prompt "显示 HAL"
+    default APP_HAL_ST7789
+    help
+      CONSOLE：无屏，输出到串口（先打通链路）。
+      ST7789：1.54寸 240x240 SPI 彩屏（GOOUUU 套件那块）。
+    config APP_HAL_CONSOLE
+        bool "CONSOLE（串口日志，无屏）"
+    config APP_HAL_ST7789
+        bool "ST7789 1.54寸 240x240 SPI 彩屏"
+endchoice
+
 config APP_ENABLE_AUDIO
     bool "启用音频（麦克风采集 + 扬声器播放）"
     default y
-    help
-      关闭即纯文本链路（先打通 WiFi+WSS+Claude）。开启需配置下面的 I2S 引脚。
 
 config APP_AUDIO_SAMPLE_RATE
     int "麦克风采样率 (Hz)"
     default 16000
 
-menu "I2S / 按键 引脚"
+menu "I2S / 按键 引脚（GOOUUU 套件默认值 = 小智标准接线）"
     depends on APP_ENABLE_AUDIO
 
     config APP_PTT_GPIO
         int "按住说话(PTT) 按钮 GPIO"
         default 0
-        help 按住录音、松开发送。多数板子的 BOOT 键是 GPIO0。
+        help 板载 BOOT 键即 GPIO0，无需额外接线。
 
     config APP_I2S_MIC_BCK
-        int "麦克风 I2S BCLK GPIO"
-        default 41
+        int "INMP441 SCK(BCLK) GPIO"
+        default 5
     config APP_I2S_MIC_WS
-        int "麦克风 I2S WS/LRCK GPIO"
-        default 42
+        int "INMP441 WS(LRCL) GPIO"
+        default 4
     config APP_I2S_MIC_DIN
-        int "麦克风 I2S DATA-IN GPIO"
-        default 2
+        int "INMP441 SD(DATA) GPIO"
+        default 6
 
     config APP_I2S_SPK_BCK
-        int "扬声器 I2S BCLK GPIO"
+        int "MAX98357 BCLK GPIO"
         default 15
     config APP_I2S_SPK_WS
-        int "扬声器 I2S WS/LRCK GPIO"
+        int "MAX98357 LRC(WS) GPIO"
         default 16
     config APP_I2S_SPK_DOUT
-        int "扬声器 I2S DATA-OUT GPIO"
-        default 17
+        int "MAX98357 DIN GPIO"
+        default 7
+endmenu
+
+menu "ST7789 屏幕引脚 (SPI)"
+    depends on APP_HAL_ST7789
+
+    config APP_LCD_SCLK
+        int "SCL(SCLK) GPIO"
+        default 47
+    config APP_LCD_MOSI
+        int "SDA(MOSI) GPIO"
+        default 48
+    config APP_LCD_DC
+        int "DC GPIO"
+        default 21
+    config APP_LCD_RST
+        int "RES(RST) GPIO"
+        default 1
+    config APP_LCD_CS
+        int "CS GPIO"
+        default 2
+    config APP_LCD_BLK
+        int "BLK(背光) GPIO"
+        default 3
+    config APP_LCD_H_RES
+        int "水平分辨率"
+        default 240
+    config APP_LCD_V_RES
+        int "垂直分辨率"
+        default 240
 endmenu
 
 endmenu

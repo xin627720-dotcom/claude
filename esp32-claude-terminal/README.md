@@ -55,8 +55,8 @@ esp32-claude-terminal/
     │   ├── ui.c/.h           ← 屏幕 UI 状态机
     │   ├── audio.c/.h        ← 麦克风采集 + 扬声器播放（I2S）
     │   ├── hal.h             ← 硬件抽象层接口（屏幕/音频）
-    │   ├── hal_console.c     ← HAL 实现①：纯串口日志（无屏幕/音频，用于先打通链路）
-    │   ├── hal_esp_box.c     ← HAL 实现②：ESP32-S3-BOX-3（屏幕+麦克风+扬声器，目标硬件）
+    │   ├── hal_console.c     ← HAL 实现①：纯串口日志（链路调试用）
+    │   ├── hal_st7789.c      ← HAL 实现②：1.54" ST7789 240x240 彩屏（默认，GOOUUU 套件）
     │   ├── protocol.h        ← 消息类型（与 bridge protocol.ts 对应）
     │   ├── app_config.h      ← 音频参数等编译期配置
     │   ├── Kconfig.projbuild ← menuconfig 选项（WiFi、桥接地址、HAL 选择）
@@ -116,7 +116,7 @@ idf.py build flash monitor
 
 - ✅ 协议、整体架构、桥接服务（可在电脑上跑、能驱动 Claude Code）
 - 🟡 固件结构完整，但**尚未在真实硬件上编译/烧录验证**（此开发环境没有 ESP-IDF 工具链）
-- 🟡 ESP-BOX 的屏幕/音频 HAL 是**参考实现**，需按你手上板子的 BSP 版本核对后再编译
+- 🟡 ST7789 屏幕 HAL 已按 GOOUUU 套件写好（esp_lcd+LVGL），但**未在硬件上编译验证**；中文需自备 CJK 字体
 
 ## 安全说明
 
