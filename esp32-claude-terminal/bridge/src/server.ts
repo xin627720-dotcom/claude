@@ -10,6 +10,7 @@ import { config } from "./config.js";
 import * as proto from "./protocol.js";
 import { chunkPcm } from "./audio.js";
 import { ClaudeSession } from "./claude.js";
+import { AppHost } from "./apphost.js";
 import { transcribe } from "./stt.js";
 import { synthesize } from "./tts.js";
 
@@ -46,6 +47,7 @@ class Hub {
   private ttsTextBuf = "";
   private ttsChain: Promise<void> = Promise.resolve();
   private pendingImage: { b64: string; at: number } | null = null;
+  private app: AppHost;
   sessionId = "";
 
   constructor() {
@@ -72,6 +74,17 @@ class Hub {
       onError: (msg) => this.broadcast({ t: "error", msg }),
     });
     this.claude.ensureStarted();
+
+    this.app = new AppHost({
+      onOpen: (m) => this.broadcast({ t: "app_open", name: m.name, w: m.w, h: m.h }),
+      onFrame: (ops) => this.broadcast({ t: "app_frame", ops }),
+      onClose: () => this.broadcast({ t: "app_close" }),
+      onError: (msg) => this.broadcast({ t: "error", msg }),
+    });
+  }
+
+  button(code: string, down: boolean): void {
+    this.app.setButton(code, down);
   }
 
   add(c: Client): void {
@@ -89,6 +102,15 @@ class Hub {
   /** 任意端来的一轮用户输入（文字）。会回显给所有端，并附带最近的摄像头帧。 */
   userTurn(text: string, from: string): void {
     if (!text) return;
+    const cmd = text.trim();
+    if (cmd === "/stop") { this.app.stop(); return; }
+    if (cmd.startsWith("/play ")) {
+      this.broadcast({ t: "user", text: cmd, from });
+      this.app
+        .start(cmd.slice(6).trim())
+        .catch((e) => this.broadcast({ t: "error", msg: `加载应用失败: ${errMsg(e)}` }));
+      return;
+    }
     this.broadcast({ t: "user", text, from }); // 回显到所有显示端（含 ESP32 聊天框）
     const img =
       this.pendingImage && Date.now() - this.pendingImage.at < 15000 ? this.pendingImage : null;
@@ -233,6 +255,9 @@ function onClientMessage(c: Client, data: Buffer, isBinary: boolean): void {
       break;
     case "cancel":
       hub.cancel();
+      break;
+    case "btn":
+      hub.button(String(m.code), !!m.down);
       break;
     case "ping":
       c.sendJson({ t: "pong" });

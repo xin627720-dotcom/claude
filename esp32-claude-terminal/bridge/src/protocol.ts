@@ -18,6 +18,7 @@ export type DeviceMsg =
   | { t: "image_begin"; fmt?: string }
   | { t: "image_end" }
   | { t: "cancel" }
+  | { t: "btn"; code: string; down: boolean }
   | { t: "ping" };
 
 // ---- 桥接 → 设备 ----
@@ -32,6 +33,9 @@ export type ServerMsg =
   | { t: "result"; session: string; text?: string; cost_usd?: number; duration_ms?: number }
   | { t: "user"; text: string; from?: string }
   | { t: "frame"; data: string }
+  | { t: "app_open"; name: string; w: number; h: number }
+  | { t: "app_frame"; ops: Array<Array<string | number>> }
+  | { t: "app_close" }
   | { t: "error"; msg: string }
   | { t: "pong" };
 
