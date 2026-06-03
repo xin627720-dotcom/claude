@@ -5,3 +5,5 @@ dependencies:
   # ST7789 屏幕用（APP_HAL_ST7789 时）。esp_lvgl_port 会带上 lvgl。
   # 选 CONSOLE HAL 时不链接，但仍会被拉取——无屏调试可临时删掉这一行。
   espressif/esp_lvgl_port: "^1.4.0"
+  # 摄像头用（APP_ENABLE_CAMERA 时）。未启用时不链接，但仍会被拉取。
+  espressif/esp32-camera: "^2.0.0"

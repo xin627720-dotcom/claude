@@ -7,6 +7,7 @@
 #include "hal.h"
 #include "app.h"
 #include "audio.h"
+#include "camera.h"
 #include "wifi.h"
 
 void app_main(void)
@@ -26,6 +27,7 @@ void app_main(void)
 
     app_start();    // 先建事件队列（音频按键任务会往里投递）
     audio_init();
+    camera_init();  // 未启用摄像头时为空操作
 
     hal_display_status(HAL_UI_WIFI_CONNECTING, NULL);
     wifi_start();   // 联网成功 → 自动连接桥接

@@ -7,7 +7,7 @@ import { config } from "./config.js";
 // 流式输入要 yield 的用户消息形状（见 Agent SDK 的 SDKUserMessage）。
 type UserMsg = {
   type: "user";
-  message: { role: "user"; content: string };
+  message: { role: "user"; content: string | object[] };
   parent_tool_use_id: null;
 };
 
@@ -90,6 +90,16 @@ export class ClaudeSession {
     this.ensureStarted();
     this.cb.onStatus?.("thinking");
     this.input.push({ type: "user", message: { role: "user", content: text }, parent_tool_use_id: null });
+  }
+
+  /** 喂一条带图片的用户输入（图片 + 可选文字），用于摄像头识别。 */
+  sendImage(text: string, base64: string, mediaType = "image/jpeg"): void {
+    this.ensureStarted();
+    this.cb.onStatus?.("thinking");
+    const content: object[] = [];
+    if (text) content.push({ type: "text", text });
+    content.push({ type: "image", source: { type: "base64", media_type: mediaType, data: base64 } });
+    this.input.push({ type: "user", message: { role: "user", content }, parent_tool_use_id: null });
   }
 
   /** 打断当前回合。 */

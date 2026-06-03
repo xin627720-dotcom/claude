@@ -24,6 +24,8 @@ ESP32 固件与 Node 桥接之间用一条 **WebSocket** 连接通信。本文�
 | `prompt` | `text`(string) | 一条**文本**输入（设备本地打字，或本地已做 STT）。 |
 | `audio_begin` | `rate`(int, 默认16000) | 一段语音开始；随后是若干二进制音频帧（channel=MIC）。 |
 | `audio_end` | — | 语音结束。桥接此时做 STT，再喂给 Claude。 |
+| `image_begin` | `fmt`(string,"jpeg") | 一帧图像开始；随后是若干二进制帧（channel=IMG）。 |
+| `image_end` | — | 图像结束。桥接缓存它，附到下一轮提问让 Claude 识别。 |
 | `cancel` | — | 打断当前 Claude 回合。 |
 | `ping` | — | 保活。桥接回 `pong`。 |
 
@@ -39,6 +41,8 @@ ESP32 固件与 Node 桥接之间用一条 **WebSocket** 连接通信。本文�
 | `tts_begin` | `rate`(int) | TTS 语音开始；随后是若干二进制音频帧（channel=TTS）。 |
 | `tts_end` | — | TTS 语音结束。 |
 | `result` | `session`(string), `text`(string?), `cost_usd`(number?), `duration_ms`(number?) | 一回合结束汇总。 |
+| `user` | `text`(string), `from`(string?) | 某端发来的用户消息，广播给所有端（ESP32 聊天框据此回显）。 |
+| `frame` | `data`(string, base64 JPEG) | 设备上传的摄像头帧，转给网页端做预览。 |
 | `error` | `msg`(string) | 出错。 |
 | `pong` | — | 对 `ping` 的回应。 |
 
@@ -66,7 +70,7 @@ ESP32 固件与 Node 桥接之间用一条 **WebSocket** 连接通信。本文�
 ```
 偏移  字段      类型    说明
 0     magic     u8      固定 0xA5（用于和误发的文本帧区分/做基本校验）
-1     channel   u8      0x01 = MIC（设备→桥接）, 0x02 = TTS（桥接→设备）
+1     channel   u8      0x01 = MIC（设备→桥接）, 0x02 = TTS（桥接→设备）, 0x03 = IMG（设备→桥接, JPEG）
 2     flags     u8      bit0 = 本段最后一帧；其余保留为 0
 3     reserved  u8      0
 4..   payload   i16[]   PCM s16le 单声道样本；样本数 = (帧长-4)/2

@@ -4,8 +4,9 @@ export const WS_PROTOCOL_VERSION = 1;
 
 // 二进制音频帧头（4 字节）
 export const AUDIO_MAGIC = 0xa5;
-export const CH_MIC = 0x01; // 设备 → 桥接
-export const CH_TTS = 0x02; // 桥接 → 设备
+export const CH_MIC = 0x01; // 设备 → 桥接（麦克风音频）
+export const CH_TTS = 0x02; // 桥接 → 设备（TTS 音频）
+export const CH_IMG = 0x03; // 设备 → 桥接（摄像头 JPEG）
 export const FLAG_LAST = 0x01; // flags bit0：本段最后一帧
 
 // ---- 设备 → 桥接 ----
@@ -14,6 +15,8 @@ export type DeviceMsg =
   | { t: "prompt"; text: string }
   | { t: "audio_begin"; rate?: number }
   | { t: "audio_end" }
+  | { t: "image_begin"; fmt?: string }
+  | { t: "image_end" }
   | { t: "cancel" }
   | { t: "ping" };
 
@@ -27,6 +30,8 @@ export type ServerMsg =
   | { t: "tts_begin"; rate: number }
   | { t: "tts_end" }
   | { t: "result"; session: string; text?: string; cost_usd?: number; duration_ms?: number }
+  | { t: "user"; text: string; from?: string }
+  | { t: "frame"; data: string }
   | { t: "error"; msg: string }
   | { t: "pong" };
 

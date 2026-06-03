@@ -1,7 +1,11 @@
-// 桥接 WebSocket 服务：设备连上来后，把语音/文本喂给 Claude Code，
-// 把逐字回答 + 合成语音流回设备。本地只监听 ws://，公网由 cloudflared 提供 wss://。
+// 多端聊天中枢：ESP32 / 网页 / 其他客户端都连到这里，共享同一个 Claude 会话；
+// 任意端的输入喂给 Claude，回复广播给所有在线端（你在手机网页发一句，ESP32 屏幕也同步）。
+// 同一个 HTTP 服务既提供网页聊天 UI，也承载 WebSocket；公网由 cloudflared 转成 https/wss。
+import { createServer, type IncomingMessage } from "node:http";
+import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { WebSocketServer, WebSocket } from "ws";
-import type { IncomingMessage } from "node:http";
 import { config } from "./config.js";
 import * as proto from "./protocol.js";
 import { chunkPcm } from "./audio.js";
@@ -9,125 +13,119 @@ import { ClaudeSession } from "./claude.js";
 import { transcribe } from "./stt.js";
 import { synthesize } from "./tts.js";
 
-const wss = new WebSocketServer({ host: config.host, port: config.port, path: config.wsPath });
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const WEB_INDEX = join(__dirname, "..", "web", "index.html");
 
-wss.on("connection", (ws, req) => {
-  if (!authorized(req)) {
-    ws.close(1008, "unauthorized");
-    return;
-  }
-  new DeviceSession(ws);
-});
-
-function authorized(req: IncomingMessage): boolean {
-  if (!config.authToken) return true; // 未配置 token：仅限本机调试
-  const auth = req.headers["authorization"];
-  if (typeof auth === "string" && auth === `Bearer ${config.authToken}`) return true;
-  try {
-    const url = new URL(req.url ?? "", "http://localhost");
-    if (url.searchParams.get("token") === config.authToken) return true;
-  } catch {
-    /* ignore */
-  }
-  return false;
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
 }
 
-class DeviceSession {
-  private claude: ClaudeSession;
-  private micChunks: Buffer[] = [];
-  private ttsTextBuf = ""; // 累积助手文本，按句切分送 TTS
-  private ttsChain: Promise<void> = Promise.resolve(); // 串行化 TTS 播放顺序
-  private alive = true;
+// ---------------- 单个客户端连接 ----------------
+let nextId = 1;
+class Client {
+  id = nextId++;
+  caps: string[] = [];
+  micChunks: Buffer[] = [];
+  imgChunks: Buffer[] = [];
+  constructor(public ws: WebSocket) {}
+  get wantsAudio(): boolean {
+    return this.caps.includes("audio_out");
+  }
+  sendJson(m: proto.ServerMsg): void {
+    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m));
+  }
+  sendBin(buf: Buffer): void {
+    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(buf, { binary: true });
+  }
+}
 
-  constructor(private ws: WebSocket) {
+// ---------------- 中枢：一个共享 Claude 会话，多端 ----------------
+class Hub {
+  private clients = new Set<Client>();
+  private claude: ClaudeSession;
+  private ttsTextBuf = "";
+  private ttsChain: Promise<void> = Promise.resolve();
+  private pendingImage: { b64: string; at: number } | null = null;
+  sessionId = "";
+
+  constructor() {
     this.claude = new ClaudeSession({
-      onSessionId: (id) => this.send({ t: "ready", session: id }),
-      onStatus: (state, detail) => this.send({ t: "status", state, detail }),
+      onSessionId: (id) => {
+        this.sessionId = id;
+        this.broadcast({ t: "ready", session: id });
+      },
+      onStatus: (state, detail) => this.broadcast({ t: "status", state, detail }),
       onTextDelta: (text) => {
-        this.send({ t: "delta", text });
+        this.broadcast({ t: "delta", text });
         this.feedTts(text);
       },
       onResult: (r) => {
         this.flushTts();
-        this.send({
+        this.broadcast({
           t: "result",
-          session: this.claude.sessionId,
+          session: this.sessionId,
           text: r.text,
           cost_usd: r.cost_usd,
           duration_ms: r.duration_ms,
         });
       },
-      onError: (msg) => this.send({ t: "error", msg }),
+      onError: (msg) => this.broadcast({ t: "error", msg }),
     });
-
-    ws.on("message", (data: Buffer, isBinary) => this.onMessage(data, isBinary));
-    ws.on("close", () => {
-      this.alive = false;
-      this.claude.close();
-    });
-    ws.on("error", () => {
-      /* 交给 close 清理 */
-    });
-
-    // 提前启动，尽快拿到 session_id 回 ready。
     this.claude.ensureStarted();
   }
 
-  private onMessage(data: Buffer, isBinary: boolean): void {
-    if (isBinary) {
-      const frame = proto.decodeAudioFrame(data);
-      if (frame && frame.channel === proto.CH_MIC) {
-        this.micChunks.push(frame.payload);
-        if (frame.last) void this.finishAudio();
-      }
-      return;
-    }
-    let m: proto.DeviceMsg;
-    try {
-      m = JSON.parse(data.toString("utf8")) as proto.DeviceMsg;
-    } catch {
-      return;
-    }
-    switch (m.t) {
-      case "hello":
-        break; // 可在此记录 caps
-      case "prompt":
-        if (m.text) this.claude.send(String(m.text));
-        break;
-      case "audio_begin":
-        this.micChunks = [];
-        break;
-      case "audio_end":
-        void this.finishAudio();
-        break;
-      case "cancel":
-        this.claude.interrupt();
-        break;
-      case "ping":
-        this.send({ t: "pong" });
-        break;
-    }
+  add(c: Client): void {
+    this.clients.add(c);
+    if (this.sessionId) c.sendJson({ t: "ready", session: this.sessionId });
+  }
+  remove(c: Client): void {
+    this.clients.delete(c);
   }
 
-  /** 一段语音收完：STT → 上屏确认 → 喂给 Claude。 */
-  private async finishAudio(): Promise<void> {
-    if (this.micChunks.length === 0) return;
-    const pcm = Buffer.concat(this.micChunks);
-    this.micChunks = [];
+  private broadcast(m: proto.ServerMsg, filter?: (c: Client) => boolean): void {
+    for (const c of this.clients) if (!filter || filter(c)) c.sendJson(m);
+  }
+
+  /** 任意端来的一轮用户输入（文字）。会回显给所有端，并附带最近的摄像头帧。 */
+  userTurn(text: string, from: string): void {
+    if (!text) return;
+    this.broadcast({ t: "user", text, from }); // 回显到所有显示端（含 ESP32 聊天框）
+    const img =
+      this.pendingImage && Date.now() - this.pendingImage.at < 15000 ? this.pendingImage : null;
+    this.pendingImage = null;
+    if (img) this.claude.sendImage(text, img.b64);
+    else this.claude.send(text);
+  }
+
+  cancel(): void {
+    this.claude.interrupt();
+  }
+
+  /** 设备上传的一帧 JPEG：缓存给下一轮提问，并把预览推给网页端。 */
+  onImage(jpeg: Buffer): void {
+    if (jpeg.length === 0) return;
+    const b64 = jpeg.toString("base64");
+    this.pendingImage = { b64, at: Date.now() };
+    this.broadcast({ t: "frame", data: b64 }, (c) => !c.wantsAudio); // 网页端看预览（ESP32 本地自带预览）
+  }
+
+  /** 设备一段语音收完：STT → 回显 → 喂 Claude。 */
+  async onAudioUtterance(pcm: Buffer): Promise<void> {
+    if (pcm.length === 0) return;
     try {
       const text = await transcribe(pcm, config.audioRate);
       if (!text) {
-        this.send({ t: "status", state: "idle", detail: "没听清" });
+        this.broadcast({ t: "status", state: "idle", detail: "没听清" });
         return;
       }
-      this.send({ t: "stt", text });
-      this.claude.send(text);
+      this.broadcast({ t: "stt", text });
+      this.userTurn(text, "voice");
     } catch (e) {
-      this.send({ t: "error", msg: `STT 失败: ${errMsg(e)}` });
+      this.broadcast({ t: "error", msg: `STT 失败: ${errMsg(e)}` });
     }
   }
 
-  // ---------- TTS 按句流水线：凑齐一句就合成并下发，边说边出声 ----------
+  // ---- TTS 按句流水线；音频只发给声明了 audio_out 的端（ESP32）----
   private feedTts(text: string): void {
     if (config.tts.provider === "none") return;
     this.ttsTextBuf += text;
@@ -141,48 +139,139 @@ class DeviceSession {
     }
     if (consumed) this.ttsTextBuf = this.ttsTextBuf.slice(consumed);
   }
-
   private flushTts(): void {
     const rest = this.ttsTextBuf.trim();
     this.ttsTextBuf = "";
     if (rest) this.enqueueTts(rest);
   }
-
   private enqueueTts(sentence: string): void {
     if (config.tts.provider === "none") return;
     this.ttsChain = this.ttsChain
       .then(async () => {
-        if (!this.alive) return;
+        const audioClients = [...this.clients].filter((c) => c.wantsAudio);
+        if (audioClients.length === 0) return;
         const { pcm, rate } = await synthesize(sentence);
-        if (!this.alive || pcm.length === 0) return;
-        this.send({ t: "tts_begin", rate });
-        const samplesPerFrame = Math.round(rate * 0.03); // ~30ms/帧
-        const frames = [...chunkPcm(pcm, samplesPerFrame)];
+        if (pcm.length === 0) return;
+        for (const c of audioClients) c.sendJson({ t: "tts_begin", rate });
+        const spf = Math.round(rate * 0.03);
+        const frames = [...chunkPcm(pcm, spf)];
         for (let i = 0; i < frames.length; i++) {
-          if (!this.alive) return;
           const last = i === frames.length - 1;
-          this.sendBinary(proto.encodeAudioFrame(proto.CH_TTS, frames[i], last));
+          const buf = proto.encodeAudioFrame(proto.CH_TTS, frames[i], last);
+          for (const c of audioClients) c.sendBin(buf);
         }
-        this.send({ t: "tts_end" });
+        for (const c of audioClients) c.sendJson({ t: "tts_end" });
       })
-      .catch((e) => this.send({ t: "error", msg: `TTS 失败: ${errMsg(e)}` }));
-  }
-
-  private send(msg: proto.ServerMsg): void {
-    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
-  }
-  private sendBinary(buf: Buffer): void {
-    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(buf, { binary: true });
+      .catch((e) => this.broadcast({ t: "error", msg: `TTS 失败: ${errMsg(e)}` }));
   }
 }
 
-function errMsg(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+const hub = new Hub();
+
+// ---------------- 连接与消息分发 ----------------
+function authorized(req: IncomingMessage): boolean {
+  if (!config.authToken) return true;
+  const auth = req.headers["authorization"];
+  if (typeof auth === "string" && auth === `Bearer ${config.authToken}`) return true;
+  try {
+    const url = new URL(req.url ?? "", "http://localhost");
+    if (url.searchParams.get("token") === config.authToken) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
 }
 
-console.log(`[bridge] 监听 ws://${config.host}:${config.port}${config.wsPath}`);
-console.log(`[bridge] 工作目录 ${config.workspaceDir}  权限模式 ${config.permissionMode}`);
-console.log(`[bridge] STT=${config.stt.provider}  TTS=${config.tts.provider}`);
-if (!config.authToken) {
-  console.warn("[bridge] ⚠ 未设置 AUTH_TOKEN —— 公网暴露前务必在 .env 里设一个长随机 token！");
+function flushMic(c: Client): void {
+  const pcm = Buffer.concat(c.micChunks);
+  c.micChunks = [];
+  void hub.onAudioUtterance(pcm);
 }
+function flushImg(c: Client): void {
+  const jpeg = Buffer.concat(c.imgChunks);
+  c.imgChunks = [];
+  hub.onImage(jpeg);
+}
+
+function onClientMessage(c: Client, data: Buffer, isBinary: boolean): void {
+  if (isBinary) {
+    const f = proto.decodeAudioFrame(data);
+    if (!f) return;
+    if (f.channel === proto.CH_MIC) {
+      c.micChunks.push(f.payload);
+      if (f.last) flushMic(c);
+    } else if (f.channel === proto.CH_IMG) {
+      c.imgChunks.push(f.payload);
+      if (f.last) flushImg(c);
+    }
+    return;
+  }
+  let m: proto.DeviceMsg;
+  try {
+    m = JSON.parse(data.toString("utf8")) as proto.DeviceMsg;
+  } catch {
+    return;
+  }
+  switch (m.t) {
+    case "hello":
+      c.caps = Array.isArray(m.caps) ? m.caps : [];
+      break;
+    case "prompt":
+      if (m.text) hub.userTurn(String(m.text), "text");
+      break;
+    case "audio_begin":
+      c.micChunks = [];
+      break;
+    case "audio_end":
+      flushMic(c);
+      break;
+    case "image_begin":
+      c.imgChunks = [];
+      break;
+    case "image_end":
+      flushImg(c);
+      break;
+    case "cancel":
+      hub.cancel();
+      break;
+    case "ping":
+      c.sendJson({ t: "pong" });
+      break;
+  }
+}
+
+// ---------------- HTTP（网页 UI）+ WebSocket ----------------
+const webIndex = existsSync(WEB_INDEX)
+  ? readFileSync(WEB_INDEX)
+  : Buffer.from("<h1>web/index.html 缺失</h1>");
+
+const server = createServer((req, res) => {
+  const path = (req.url ?? "/").split("?")[0];
+  if (path === "/" || path === "/index.html") {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.end(webIndex);
+  } else {
+    res.writeHead(404);
+    res.end("not found");
+  }
+});
+
+const wss = new WebSocketServer({ server, path: config.wsPath });
+wss.on("connection", (ws, req) => {
+  if (!authorized(req)) {
+    ws.close(1008, "unauthorized");
+    return;
+  }
+  const c = new Client(ws);
+  hub.add(c);
+  ws.on("message", (data: Buffer, isBinary) => onClientMessage(c, data, isBinary));
+  ws.on("close", () => hub.remove(c));
+  ws.on("error", () => hub.remove(c));
+});
+
+server.listen(config.port, config.host, () => {
+  console.log(`[bridge] 网页聊天 http://${config.host}:${config.port}/`);
+  console.log(`[bridge] WebSocket ws://${config.host}:${config.port}${config.wsPath}`);
+  console.log(`[bridge] 工作目录 ${config.workspaceDir}  权限 ${config.permissionMode}  STT=${config.stt.provider} TTS=${config.tts.provider}`);
+  if (!config.authToken) console.warn("[bridge] ⚠ 未设置 AUTH_TOKEN —— 公网暴露前务必设置！");
+});

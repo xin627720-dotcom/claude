@@ -36,6 +36,14 @@ config APP_ENABLE_AUDIO
     bool "启用音频（麦克风采集 + 扬声器播放）"
     default y
 
+config APP_ENABLE_CAMERA
+    bool "启用摄像头（OV3660，给 Claude 做视觉识别）"
+    default n
+    help
+      插上 OV3660 拍帧给 Claude 识别。⚠ 摄像头占用 GPIO4-18，与语音模式默认的音频/屏幕
+      引脚冲突！开启前请按 docs/HARDWARE.md 的「摄像头模式接线」把音频和屏幕引脚改到空闲脚，
+      并在 menuconfig 开启 PSRAM（这块板子多为 octal）。
+
 config APP_AUDIO_SAMPLE_RATE
     int "麦克风采样率 (Hz)"
     default 16000

@@ -20,6 +20,9 @@ set(APP_REQUIRES
 if(CONFIG_APP_HAL_ST7789)
     list(APPEND APP_REQUIRES "esp_lcd" "esp_lvgl_port")
 endif()
+if(CONFIG_APP_ENABLE_CAMERA)
+    list(APPEND APP_REQUIRES "esp32_camera")
+endif()
 
 idf_component_register(
     SRCS
@@ -28,6 +31,7 @@ idf_component_register(
         "wifi.c"
         "net.c"
         "audio.c"
+        "camera.c"
         ${HAL_SRC}
     INCLUDE_DIRS "."
     REQUIRES ${APP_REQUIRES}

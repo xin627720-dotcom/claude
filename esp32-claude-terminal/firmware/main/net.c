@@ -24,8 +24,13 @@ static void send_text(const char *json)
 
 void net_send_hello(void)
 {
+#if CONFIG_APP_ENABLE_CAMERA
+    send_text("{\"t\":\"hello\",\"fw\":\"" APP_FW_VERSION
+              "\",\"caps\":[\"audio_in\",\"audio_out\",\"display\",\"camera\"]}");
+#else
     send_text("{\"t\":\"hello\",\"fw\":\"" APP_FW_VERSION
               "\",\"caps\":[\"audio_in\",\"audio_out\",\"display\"]}");
+#endif
 }
 
 void net_send_prompt(const char *text)
@@ -57,6 +62,26 @@ void net_send_audio_frame(const uint8_t *pcm, size_t len, bool last)
     if (len) memcpy(buf + AUDIO_HEADER_LEN, pcm, len);
     esp_websocket_client_send_bin(s_client, (const char *)buf,
                                   AUDIO_HEADER_LEN + len, pdMS_TO_TICKS(2000));
+}
+
+// 整张 JPEG 自动切成 ~1KB 的 CH_IMG 帧上传；末帧打 last 标记。
+void net_send_image(const uint8_t *jpeg, size_t len)
+{
+    if (!s_client || !s_connected || !jpeg || len == 0) return;
+    send_text("{\"t\":\"image_begin\",\"fmt\":\"jpeg\"}");
+    enum { CHUNK = 1024 };
+    uint8_t buf[AUDIO_HEADER_LEN + CHUNK];
+    size_t off = 0;
+    while (off < len) {
+        size_t n = (len - off > CHUNK) ? CHUNK : (len - off);
+        int last = (off + n >= len);
+        audio_header_write(buf, CH_IMG, last);
+        memcpy(buf + AUDIO_HEADER_LEN, jpeg + off, n);
+        esp_websocket_client_send_bin(s_client, (const char *)buf,
+                                      AUDIO_HEADER_LEN + n, pdMS_TO_TICKS(3000));
+        off += n;
+    }
+    send_text("{\"t\":\"image_end\"}");
 }
 
 bool net_is_connected(void) { return s_connected; }

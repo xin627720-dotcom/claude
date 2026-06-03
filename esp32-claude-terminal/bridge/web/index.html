@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Claude 终端</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b0f14; color: #e6edf3;
+    font: 16px/1.5 -apple-system, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #app { display: flex; flex-direction: column; height: 100dvh; max-width: 720px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+    border-bottom: 1px solid #1d262f; background: #0d141b; }
+  header b { font-weight: 600; }
+  #status { font-size: 13px; color: #7d8896; margin-left: auto; }
+  #cam { display: none; width: 100%; max-height: 38vh; object-fit: contain; background: #000;
+    border-bottom: 1px solid #1d262f; }
+  #log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; }
+  .row.me { justify-content: flex-end; }
+  .bubble { max-width: 84%; padding: 9px 12px; border-radius: 14px; white-space: pre-wrap;
+    word-break: break-word; }
+  .me .bubble { background: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
+  .ai .bubble { background: #161e27; border: 1px solid #222d39; border-bottom-left-radius: 4px; }
+  .sys { align-self: center; color: #8a94a2; font-size: 12px; }
+  .tag { font-size: 11px; color: #9fb0c3; margin-bottom: 2px; }
+  form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #1d262f; background: #0d141b; }
+  #msg { flex: 1; resize: none; padding: 10px 12px; border-radius: 12px; border: 1px solid #28323d;
+    background: #0b1117; color: #e6edf3; font: inherit; max-height: 120px; }
+  button { padding: 0 18px; border: 0; border-radius: 12px; background: #2563eb; color: #fff;
+    font: inherit; font-weight: 600; }
+  button:disabled { opacity: .5; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header><b>Claude 终端</b><span id="status">连接中…</span></header>
+  <img id="cam" alt="camera" />
+  <div id="log"></div>
+  <form id="f">
+    <textarea id="msg" rows="1" placeholder="给 Claude 发消息…" autocomplete="off"></textarea>
+    <button id="send" type="submit">发送</button>
+  </form>
+</div>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const log = $("log"), statusEl = $("status"), cam = $("cam"), input = $("msg");
+
+  // token 从 URL ?token= 取（把这个完整网址发到手机即可）；没有就提示输入一次
+  const params = new URLSearchParams(location.search);
+  let token = params.get("token") || localStorage.getItem("token") || "";
+  if (!token) { token = prompt("输入鉴权 token（bridge .env 的 AUTH_TOKEN）") || ""; }
+  if (token) localStorage.setItem("token", token);
+
+  const wsProto = location.protocol === "https:" ? "wss" : "ws";
+  const wsUrl = wsProto + "://" + location.host + "/agent" + (token ? "?token=" + encodeURIComponent(token) : "");
+
+  let ws, aiBubble = null;
+
+  function atBottom() { return log.scrollHeight - log.scrollTop - log.clientHeight < 80; }
+  function scroll() { log.scrollTop = log.scrollHeight; }
+
+  function addBubble(kind, text, tag) {
+    const stick = atBottom();
+    const row = document.createElement("div");
+    row.className = "row " + (kind === "me" ? "me" : "ai");
+    const b = document.createElement("div");
+    b.className = "bubble";
+    if (tag) { const t = document.createElement("div"); t.className = "tag"; t.textContent = tag; b.appendChild(t); }
+    const span = document.createElement("span");
+    span.textContent = text || "";
+    b.appendChild(span);
+    row.appendChild(b);
+    log.appendChild(row);
+    if (stick) scroll();
+    return span;
+  }
+  function sys(text) {
+    const d = document.createElement("div");
+    d.className = "sys"; d.textContent = text; log.appendChild(d); scroll();
+  }
+
+  function setStatus(s) { statusEl.textContent = s; }
+
+  function connect() {
+    setStatus("连接中…");
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => { setStatus("已连接"); ws.send(JSON.stringify({ t: "hello", fw: "web", caps: ["display", "text"] })); };
+    ws.onclose = () => { setStatus("已断开，重连…"); setTimeout(connect, 1500); };
+    ws.onerror = () => setStatus("连接错误");
+    ws.onmessage = (ev) => {
+      if (typeof ev.data !== "string") return; // 忽略二进制（音频）
+      let m; try { m = JSON.parse(ev.data); } catch { return; }
+      switch (m.t) {
+        case "ready": setStatus("就绪"); break;
+        case "status":
+          setStatus(m.detail ? m.state + " · " + m.detail : m.state);
+          if (m.state !== "idle") aiBubble = null; // 新一轮
+          break;
+        case "user": // 任意端发来的用户消息（含本端回显）
+          addBubble("me", m.text, m.from && m.from !== "text" ? m.from : null);
+          aiBubble = null;
+          break;
+        case "delta":
+          if (!aiBubble) aiBubble = addBubble("ai", "", "Claude");
+          aiBubble.textContent += m.text;
+          if (atBottom()) scroll();
+          break;
+        case "result":
+          aiBubble = null;
+          break;
+        case "frame":
+          cam.style.display = "block";
+          cam.src = "data:image/jpeg;base64," + m.data;
+          break;
+        case "error": sys("⚠ " + m.msg); break;
+      }
+    };
+  }
+
+  $("f").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text || !ws || ws.readyState !== 1) return;
+    ws.send(JSON.stringify({ t: "prompt", text })); // 气泡由服务端 user 广播渲染，保证多端一致
+    input.value = ""; input.style.height = "auto";
+  });
+  input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 120) + "px"; });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("f").requestSubmit(); } });
+
+  connect();
+})();
+</script>
+</body>
+</html>

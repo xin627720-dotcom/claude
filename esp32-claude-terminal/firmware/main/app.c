@@ -2,6 +2,7 @@
 #include "hal.h"
 #include "net.h"
 #include "audio.h"
+#include "camera.h"
 #include "app_config.h"
 
 #include <string.h>
@@ -93,6 +94,7 @@ static void handle(ev_t *e)
             hal_display_status(HAL_UI_LISTENING, NULL);
             net_send_audio_begin(APP_AUDIO_SAMPLE_RATE);
             audio_capture_start();
+            camera_request_capture(); // 顺带拍一帧随这轮提问上传（无摄像头时空操作）
         } else {
             ESP_LOGW(TAG, "未连接桥接，忽略 PTT");
         }
