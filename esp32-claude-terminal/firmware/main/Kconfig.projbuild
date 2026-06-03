@@ -1,0 +1,109 @@
+menu "Claude 终端配置"
+
+config APP_WIFI_SSID
+    string "WiFi SSID"
+    default "myssid"
+
+config APP_WIFI_PASSWORD
+    string "WiFi 密码"
+    default "mypassword"
+
+config APP_BRIDGE_URI
+    string "桥接 WebSocket 地址"
+    default "wss://your-tunnel.trycloudflare.com/agent"
+    help
+      cloudflared 暴露出的 wss 地址 + 路径。例： wss://xxx.trycloudflare.com/agent
+
+config APP_BRIDGE_TOKEN
+    string "桥接鉴权 token"
+    default ""
+    help
+      与 bridge 的 .env AUTH_TOKEN 相同。非空时作为 ?token= 附加到地址后。
+
+choice APP_HAL
+    prompt "显示 HAL"
+    default APP_HAL_ST7789
+    help
+      CONSOLE：无屏，输出到串口（先打通链路）。
+      ST7789：1.54寸 240x240 SPI 彩屏（GOOUUU 套件那块）。
+    config APP_HAL_CONSOLE
+        bool "CONSOLE（串口日志，无屏）"
+    config APP_HAL_ST7789
+        bool "ST7789 1.54寸 240x240 SPI 彩屏"
+endchoice
+
+config APP_ENABLE_AUDIO
+    bool "启用音频（麦克风采集 + 扬声器播放）"
+    default y
+
+config APP_ENABLE_CAMERA
+    bool "启用摄像头（OV3660，给 Claude 做视觉识别）"
+    default n
+    help
+      插上 OV3660 拍帧给 Claude 识别。⚠ 摄像头占用 GPIO4-18，与语音模式默认的音频/屏幕
+      引脚冲突！开启前请按 docs/HARDWARE.md 的「摄像头模式接线」把音频和屏幕引脚改到空闲脚，
+      并在 menuconfig 开启 PSRAM（这块板子多为 octal）。
+
+config APP_AUDIO_SAMPLE_RATE
+    int "麦克风采样率 (Hz)"
+    default 16000
+
+menu "I2S / 按键 引脚（GOOUUU 套件默认值 = 小智标准接线）"
+    depends on APP_ENABLE_AUDIO
+
+    config APP_PTT_GPIO
+        int "按住说话(PTT) 按钮 GPIO"
+        default 0
+        help 板载 BOOT 键即 GPIO0，无需额外接线。
+
+    config APP_I2S_MIC_BCK
+        int "INMP441 SCK(BCLK) GPIO"
+        default 5
+    config APP_I2S_MIC_WS
+        int "INMP441 WS(LRCL) GPIO"
+        default 4
+    config APP_I2S_MIC_DIN
+        int "INMP441 SD(DATA) GPIO"
+        default 6
+
+    config APP_I2S_SPK_BCK
+        int "MAX98357 BCLK GPIO"
+        default 15
+    config APP_I2S_SPK_WS
+        int "MAX98357 LRC(WS) GPIO"
+        default 16
+    config APP_I2S_SPK_DOUT
+        int "MAX98357 DIN GPIO"
+        default 7
+endmenu
+
+menu "ST7789 屏幕引脚 (SPI)"
+    depends on APP_HAL_ST7789
+
+    config APP_LCD_SCLK
+        int "SCL(SCLK) GPIO"
+        default 47
+    config APP_LCD_MOSI
+        int "SDA(MOSI) GPIO"
+        default 48
+    config APP_LCD_DC
+        int "DC GPIO"
+        default 21
+    config APP_LCD_RST
+        int "RES(RST) GPIO"
+        default 1
+    config APP_LCD_CS
+        int "CS GPIO"
+        default 2
+    config APP_LCD_BLK
+        int "BLK(背光) GPIO"
+        default 3
+    config APP_LCD_H_RES
+        int "水平分辨率"
+        default 240
+    config APP_LCD_V_RES
+        int "垂直分辨率"
+        default 240
+endmenu
+
+endmenu
