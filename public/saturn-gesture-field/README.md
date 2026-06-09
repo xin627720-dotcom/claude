@@ -34,16 +34,17 @@ ships with the normal deploy and is served at **`/saturn-gesture-field/`**
 (e.g. `https://<your-deploy>.vercel.app/saturn-gesture-field/`). HTTPS there
 means the webcam just works — open it and **allow camera access**.
 
-**Local:** serve over `localhost` (not `file://`):
+**Local:** serve the **repository root** (so the `/saturn-gesture-field/` path
+matches the page's `<base>`), then open that path:
 
 ```bash
-# from this folder — any static server works:
-npx serve .
+# from the repo root — any static server works:
+npx serve .                    # → http://localhost:3000/saturn-gesture-field/
 # or
-python3 -m http.server 8000
+python3 -m http.server 8000    # → http://localhost:8000/saturn-gesture-field/
 ```
 
-Then open the printed URL and allow camera access.
+Open the `/saturn-gesture-field/` URL and allow camera access.
 
 > First load fetches Three.js and the MediaPipe model from a CDN, so an
 > internet connection is required.
