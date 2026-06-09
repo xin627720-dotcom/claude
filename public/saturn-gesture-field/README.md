@@ -26,18 +26,24 @@ gradient space backdrop.
 
 ## Run it
 
-The webcam needs a **secure context**, so serve over `http://localhost`
-(not `file://`). From this folder:
+The webcam needs a **secure context** (HTTPS or `localhost`) — `file://`
+won't grant camera access.
+
+**Hosted (easiest):** this folder lives in the Next.js app's `public/`, so it
+ships with the normal deploy and is served at **`/saturn-gesture-field/`**
+(e.g. `https://<your-deploy>.vercel.app/saturn-gesture-field/`). HTTPS there
+means the webcam just works — open it and **allow camera access**.
+
+**Local:** serve over `localhost` (not `file://`):
 
 ```bash
-# any static server works — pick one:
+# from this folder — any static server works:
 npx serve .
 # or
 python3 -m http.server 8000
 ```
 
-Then open the printed URL (e.g. `http://localhost:3000` or
-`http://localhost:8000`) and **allow camera access** when prompted.
+Then open the printed URL and allow camera access.
 
 > First load fetches Three.js and the MediaPipe model from a CDN, so an
 > internet connection is required.
@@ -49,6 +55,8 @@ Then open the printed URL (e.g. `http://localhost:3000` or
 - **Drag** to orbit the view · **F** or the ⛶ button for fullscreen · **ⓘ** for help.
 
 ## Layout
+
+Lives at `public/saturn-gesture-field/` (served at `/saturn-gesture-field/`).
 
 ```
 saturn-gesture-field/
